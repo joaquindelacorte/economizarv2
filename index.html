@@ -184,70 +184,108 @@
 
     function renderChart(items) {
         const ctx = document.getElementById('mainChart').getContext('2d');
-        
+
         const labels = items.map(i => formatLabel(i.fecha));
-        const soja = items.map(i => i.camiones_so_ja || i.camiones_soja); // Manejo de posibles typos
-        const trigo = items.map(i => i.camiones_trigo);
-        const maiz = items.map(i => i.camiones_maiz);
+        const soja  = items.map(i => i.camiones_so_ja || i.camiones_soja || 0);
+        const trigo = items.map(i => i.camiones_trigo || 0);
+        const maiz  = items.map(i => i.camiones_maiz  || 0);
+        const total = items.map((_, idx) => soja[idx] + trigo[idx] + maiz[idx]);
 
         if (myChart) myChart.destroy();
 
         myChart = new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: labels,
+                labels,
                 datasets: [
-                    { label: 'Soja', data: soja, backgroundColor: '#22c55e', borderRadius: 4 },
-                    { label: 'Trigo', data: trigo, backgroundColor: '#eab308', borderRadius: 4 },
-                    { label: 'Maíz', data: maiz, backgroundColor: '#f97316', borderRadius: 4 }
+                    {
+                        label: 'Soja',
+                        type: 'bar',
+                        data: soja,
+                        backgroundColor: '#22c55e',
+                        borderRadius: 5,
+                        borderSkipped: false,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Trigo',
+                        type: 'bar',
+                        data: trigo,
+                        backgroundColor: '#eab308',
+                        borderRadius: 5,
+                        borderSkipped: false,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Maíz',
+                        type: 'bar',
+                        data: maiz,
+                        backgroundColor: '#f97316',
+                        borderRadius: 5,
+                        borderSkipped: false,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Total',
+                        type: 'line',
+                        data: total,
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59,130,246,0.08)',
+                        pointBackgroundColor: '#3b82f6',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 5,
+                        pointHoverRadius: 7,
+                        borderWidth: 2.5,
+                        tension: 0.35,
+                        fill: false,
+                        yAxisID: 'y',
+                        order: 0,
+                        datalabels: { display: false }
+                    }
                 ]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                layout: { padding: { top: 30 } }, // Espacio para las etiquetas superiores
+                interaction: { mode: 'index', intersect: false },
+                layout: { padding: { top: 16 } },
                 scales: {
-                    x: { 
-                        stacked: true, 
+                    x: {
+                        stacked: false,
                         grid: { display: false },
-                        ticks: { color: '#64748b', font: { weight: '600' } }
+                        ticks: { color: '#64748b', font: { size: 11, weight: '600' } }
                     },
-                    y: { 
-                        stacked: true, 
+                    y: {
+                        stacked: false,
                         beginAtZero: true,
                         grid: { color: '#f1f5f9' },
-                        ticks: { color: '#64748b' }
+                        ticks: {
+                            color: '#64748b',
+                            callback: v => v.toLocaleString('es-AR')
+                        }
                     }
                 },
                 plugins: {
                     legend: {
                         position: 'top',
                         align: 'end',
-                        labels: { usePointStyle: true, pointStyle: 'circle', padding: 20, font: { size: 12, weight: '600' } }
+                        labels: {
+                            usePointStyle: true,
+                            pointStyle: 'circle',
+                            padding: 20,
+                            font: { size: 12, weight: '600' }
+                        }
                     },
                     datalabels: {
-                        anchor: 'end',
-                        align: 'top',
-                        color: '#1e293b',
-                        font: { weight: 'bold', size: 13 },
-                        formatter: (value, context) => {
-                            // Solo mostramos el total en el último dataset (Maíz) para no repetir
-                            if (context.datasetIndex === context.chart.data.datasets.length - 1) {
-                                let sum = 0;
-                                context.chart.data.datasets.forEach(dataset => {
-                                    sum += dataset.data[context.dataIndex];
-                                });
-                                return sum.toLocaleString(); // El valor total arriba
-                            }
-                            return null; // No mostrar nada en las barras intermedias
-                        }
+                        display: false
                     },
                     tooltip: {
                         backgroundColor: '#1e293b',
                         padding: 12,
                         cornerRadius: 8,
                         callbacks: {
-                            label: (context) => `${context.dataset.label}: ${context.raw} camiones`
+                            label: ctx => `${ctx.dataset.label}: ${Number(ctx.raw).toLocaleString('es-AR')} camiones`
                         }
                     }
                 }
