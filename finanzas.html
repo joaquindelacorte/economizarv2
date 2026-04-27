@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Finanzas & BCRA</title>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7056671058245686"
+     crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="estilos_compartidos.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { padding: 32px; background-color: transparent; }
+
+        @media (max-width: 768px) {
+            body { padding: 16px; }
+            .bcra-controls { flex-direction: column; align-items: stretch; }
+            .control-group select, .control-group input { min-width: 100%; }
+            .btn-fetch { width: 100%; margin-top: 8px; min-height: 48px; font-size: 1rem; }
+            .btn-fetch:hover { transform: none; }
+            .section-title { font-size: 1.15rem; }
+
+            /* Sliders: mayor área táctil en mobile */
+            .emae-range-wrap { margin: 12px 0 32px; }
+            .emae-range-track { height: 6px; margin: 22px 14px; }
+            .emae-slider { height: 44px; width: calc(100% + 28px); left: -14px; }
+            .emae-slider::-webkit-slider-thumb {
+                width: 28px; height: 28px;
+                box-shadow: 0 0 0 6px rgba(59,130,246,0.2);
+            }
+            .emae-slider::-moz-range-thumb { width: 28px; height: 28px; }
+            .emae-range-labels .lbl { font-size: 0.8rem; padding: 4px 10px; }
+        }
+
+        .dolar-card { display: flex; flex-direction: column; align-items: center; text-align: center; }
+        .dolar-prices { display: flex; gap: 24px; margin-top: 12px; width: 100%; }
+        .price-box { flex: 1; background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; }
+        .price-box span { display: block; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px; }
+        .price-box b { font-family: 'Outfit', sans-serif; font-size: 1.5rem; color: var(--accent); }
+
+        .chart-container { position: relative; height: 280px; width: 100%; margin-top: 16px; }
+
+        .section-title { font-family: 'Outfit', sans-serif; font-size: 1.25rem; margin: 32px 0 16px 0; padding-bottom: 8px; border-bottom: 1px solid var(--border-color); }
+        .mini-trend { font-size: 0.8rem; display: flex; align-items: center; justify-content: center; gap: 4px; margin-top: 8px; }
+
+        .indicator-hero { display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px; }
+        .indicator-hero .data-value { margin: 0; }
+
+        /* BCRA Explorer */
+        .bcra-explorer { margin-top: 32px; }
+        .bcra-controls { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; align-items: flex-end; }
+        .control-group { display: flex; flex-direction: column; gap: 4px; }
+        .control-group label { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+        .control-group select, .control-group input {
+            background: rgba(30, 41, 59, 0.8); color: white; border: 1px solid var(--border-color);
+            padding: 8px 12px; border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 0.85rem; outline: none;
+        }
+        .control-group select { min-width: 240px; }
+        .btn-fetch {
+            background: var(--accent); color: #fff; border: none; padding: 10px 20px; border-radius: 8px;
+            font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.85rem;
+            touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+        }
+        .btn-fetch:hover { background: var(--accent-hover); transform: translateY(-1px); }
+        .btn-fetch:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .bcra-result-card { margin-top: 16px; }
+        .bcra-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 16px; }
+        .stat-mini { background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; text-align: center; }
+        .stat-mini .label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+        .stat-mini .val { font-family: 'Outfit', sans-serif; font-size: 1.3rem; font-weight: 700; color: #fff; margin-top: 4px; }
+
+        .compare-chart-container { position: relative; height: 350px; width: 100%; }
+
+        /* EMAE */
+        .emae-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+        .emae-toggle { display: flex; gap: 8px; flex-wrap: wrap; }
+        .emae-toggle-btn { background: rgba(30,41,59,0.8); border: 1px solid var(--border-color); color: var(--text-secondary); padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; transition: all 0.2s; }
+        .emae-toggle-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .emae-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 16px; }
+        .emae-chart-container { position: relative; height: 300px; width: 100%; margin-top: 8px; }
+
+        /* EMAE range slider */
+        .emae-range-wrap { margin: 8px 0 20px; touch-action: pan-y; }
+        .emae-range-labels { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 0.75rem; }
+        .emae-range-labels .lbl { font-weight: 600; color: #e2e8f0; background: rgba(59,130,246,0.18); padding: 3px 9px; border-radius: 5px; min-width: 72px; text-align: center; }
+        .emae-range-labels .sep { color: var(--text-muted); flex: 1; text-align: center; }
+        .emae-range-track { position: relative; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; margin: 14px 8px; }
+        .emae-range-fill { position: absolute; top: 0; height: 100%; background: var(--accent); border-radius: 2px; pointer-events: none; }
+        .emae-slider { position: absolute; width: calc(100% + 16px); left: -8px; top: 50%; transform: translateY(-50%);
+            -webkit-appearance: none; appearance: none; background: transparent; pointer-events: none;
+            height: 20px; margin: 0; padding: 0; outline: none; touch-action: none; }
+        .emae-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%;
+            background: var(--accent); cursor: pointer; pointer-events: all;
+            border: 2px solid #0f172a; box-shadow: 0 0 0 3px rgba(59,130,246,0.25); transition: box-shadow 0.15s; }
+        .emae-slider::-webkit-slider-thumb:hover { box-shadow: 0 0 0 5px rgba(59,130,246,0.35); }
+        .emae-slider::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%;
+            background: var(--accent); cursor: pointer; pointer-events: all; border: 2px solid #0f172a; }
+    </style>
+</head>
+<body>
+
+    <div class="page-header stagger-1 fade-in">
+        <h1 class="page-title">Mercado Financiero & Indicadores</h1>
+        <p class="page-subtitle">Cotizaciones del dólar, riesgo país, inflación y análisis BCRA en tiempo real.</p>
+    </div>
+
+    <!-- MAIN VARIABLES TOP CARDS -->
+    <h2 class="section-title stagger-1 fade-in" style="margin-top: 0;">Cifras Clave BCRA</h2>
+    <div class="grid-4 stagger-1 fade-in" id="top-bcra-grid" style="margin-bottom: 32px;">
+        <div class="loader-container"><div class="spinner"></div></div>
+    </div>
+
+    <!-- Dolares Section -->
+    <h2 class="section-title stagger-2 fade-in">Cotizaciones Dólar (Hoy)</h2>
+    <div class="grid-3 stagger-2 fade-in" id="dolares-grid">
+        <div class="loader-container"><div class="spinner"></div></div>
+    </div>
+
+    <!-- Indicators Section -->
+    <h2 class="section-title stagger-3 fade-in">Indicadores Macroeconómicos</h2>
+    <div class="glass-card stagger-3 fade-in" id="riesgo-section">
+        <div class="loader-container"><div class="spinner"></div></div>
+    </div>
+    <div class="glass-card stagger-3 fade-in" style="margin-top:16px;" id="inflacion-section">
+        <div class="loader-container"><div class="spinner"></div></div>
+    </div>
+
+    <!-- EMAE Section -->
+    <h2 class="section-title stagger-4 fade-in">Actividad Económica (EMAE)</h2>
+    <div class="glass-card stagger-4 fade-in" id="emae-section">
+        <div class="loader-container"><div class="spinner"></div></div>
+    </div>
+
+    <!-- BCRA Explorer -->
+    <div class="bcra-explorer stagger-5 fade-in">
+        <h2 class="section-title">🏛️ Explorador BCRA — Estadísticas Monetarias v4</h2>
+        <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 16px;">
+            Seleccioná hasta 3 variables para comparar en un mismo gráfico. Datos directos de <code>api.bcra.gob.ar/estadisticas/v4.0</code>.
+        </p>
+
+        <div class="bcra-controls">
+            <div class="control-group">
+                <label>Variable 1</label>
+                <select id="bcra-var1"></select>
+            </div>
+            <div class="control-group">
+                <label>Variable 2 (opcional)</label>
+                <select id="bcra-var2"><option value="">— Ninguna —</option></select>
+            </div>
+            <div class="control-group">
+                <label>Variable 3 (opcional)</label>
+                <select id="bcra-var3"><option value="">— Ninguna —</option></select>
+            </div>
+            <div class="control-group">
+                <label>Últimos N datos</label>
+                <select id="bcra-limit">
+                    <option value="30">30 días</option>
+                    <option value="60" selected>60 días</option>
+                    <option value="120">120 días</option>
+                    <option value="250">1 año (~250)</option>
+                    <option value="500">2 años (~500)</option>
+                </select>
+            </div>
+            <button class="btn-fetch" id="btn-bcra" onclick="fetchBCRAExplorer()">📊 Consultar</button>
+        </div>
+
+        <div id="bcra-result" class="bcra-result-card"></div>
+    </div>
+
+    <script>
+        // ======== BCRA VARIABLE CATALOG ========
+        const BCRA_VARS = [
+            { id: 1, name: 'Reservas Internacionales (M USD)', cat: 'Reservas' },
+            { id: 4, name: 'TC Minorista (promedio vendedor)', cat: 'Tipo de Cambio' },
+            { id: 5, name: 'TC Mayorista de referencia', cat: 'Tipo de Cambio' },
+            { id: 7, name: 'Tasa BADLAR bancos privados', cat: 'Tasas' },
+            { id: 8, name: 'Tasa TM20 bancos privados', cat: 'Tasas' },
+            { id: 11, name: 'Tasa préstamos interbancarios (BAIBAR)', cat: 'Tasas' },
+            { id: 12, name: 'Tasa depósitos 30 días', cat: 'Tasas' },
+            { id: 13, name: 'Tasa adelantos en cta cte', cat: 'Tasas' },
+            { id: 14, name: 'Tasa préstamos personales', cat: 'Tasas' },
+            { id: 15, name: 'Base Monetaria', cat: 'Agregados' },
+            { id: 16, name: 'Circulación Monetaria', cat: 'Agregados' },
+            { id: 17, name: 'Billetes y monedas en poder del público', cat: 'Agregados' },
+            { id: 18, name: 'Efectivo en pesos en entidades financieras', cat: 'Agregados' },
+            { id: 19, name: 'Depósitos entidades en cta cte BCRA', cat: 'Agregados' },
+            { id: 21, name: 'Depósitos en efectivo en entidades', cat: 'Depósitos' },
+            { id: 22, name: 'Depósitos cta cte (neto FUCO)', cat: 'Depósitos' },
+            { id: 23, name: 'Depósitos caja de ahorro', cat: 'Depósitos' },
+            { id: 24, name: 'Depósitos a plazo (incl inversiones)', cat: 'Depósitos' },
+            { id: 25, name: 'Var. interanual M2 privado (prom 30d)', cat: 'Indicadores' },
+            { id: 26, name: 'Préstamos al sector privado', cat: 'Créditos' },
+            { id: 27, name: 'IPC variación mensual', cat: 'Precios' },
+            { id: 28, name: 'IPC variación interanual', cat: 'Precios' },
+            { id: 29, name: 'Expectativas IPC 12m (mediana REM)', cat: 'Precios' },
+            { id: 30, name: 'CER (base 2.2.02=1)', cat: 'Ajustes' },
+            { id: 31, name: 'UVA (base 31.3.16=14.05)', cat: 'Ajustes' },
+            { id: 32, name: 'UVI (base 31.3.16=14.05)', cat: 'Ajustes' },
+            { id: 35, name: 'Tasa BADLAR privados (otra serie)', cat: 'Tasas' },
+            { id: 40, name: 'ICL - Índice Contratos de Locación', cat: 'Ajustes' },
+            { id: 43, name: 'Tasa Com. P 14.290 (uso justicia)', cat: 'Tasas' },
+            { id: 44, name: 'Tasa TAMAR bancos privados', cat: 'Tasas' },
+        ];
+
+        const CHART_COLORS = ['#3b82f6', '#f59e0b', '#10b981'];
+
+        // Populate selectors
+        function populateSelectors() {
+            const selects = [document.getElementById('bcra-var1'), document.getElementById('bcra-var2'), document.getElementById('bcra-var3')];
+            let grouped = {};
+            BCRA_VARS.forEach(v => {
+                if (!grouped[v.cat]) grouped[v.cat] = [];
+                grouped[v.cat].push(v);
+            });
+
+            selects.forEach((sel, idx) => {
+                const hasNone = idx > 0;
+                if (hasNone) sel.innerHTML = '<option value="">— Ninguna —</option>';
+                else sel.innerHTML = '';
+
+                Object.keys(grouped).forEach(cat => {
+                    const optgroup = document.createElement('optgroup');
+                    optgroup.label = cat;
+                    grouped[cat].forEach(v => {
+                        const opt = document.createElement('option');
+                        opt.value = v.id;
+                        opt.textContent = `[${v.id}] ${v.name}`;
+                        optgroup.appendChild(opt);
+                    });
+                    sel.appendChild(optgroup);
+                });
+            });
+
+            // Default selections
+            selects[0].value = '1';  // Reservas
+        }
+
+        // ======== BCRA EXPLORER FETCH ========
+        let bcraChart = null;
+
+        async function fetchBCRAVariable(idVar, limit) {
+            const url = `https://api.bcra.gob.ar/estadisticas/v4.0/Monetarias/${idVar}`;
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const json = await res.json();
+            
+            let data = [];
+            if (json.results && json.results.length > 0 && json.results[0].detalle) {
+                data = json.results[0].detalle;
+            } else if (json.detalle) {
+                data = json.detalle;
+            } else if (Array.isArray(json.results)) {
+                data = json.results; // Fallback
+            }
+            
+            // Limit to the newest N records, the API returns descending order (newest first)
+            data = data.slice(0, limit);
+            
+            // Return chronologically sorted data (oldest to newest)
+            return data.map(d => ({ fecha: d.fecha, valor: d.valor })).sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+        }
+
+        async function fetchTopBCRA() {
+            const topVars = [
+                { id: 1, label: 'Reservas (M USD)', icon: '💵' },
+                { id: 15, label: 'Base Monetaria (M ARS)', icon: '🏦' },
+                { id: 26, label: 'Créditos Privados', icon: '📈' },
+                { id: 7, label: 'Tasa BADLAR (%)', icon: '📊' }
+            ];
+            
+            const grid = document.getElementById('top-bcra-grid');
+            
+            try {
+                const results = await Promise.all(topVars.map(v => fetchBCRAVariable(v.id, 2)));
+                
+                grid.innerHTML = '';
+                results.forEach((data, index) => {
+                    const varInfo = topVars[index];
+                    if (data.length === 0) {
+                        grid.innerHTML += `<div class="glass-card"><div class="data-label">${varInfo.icon} ${varInfo.label}</div><p>Sin datos</p></div>`;
+                        return;
+                    }
+                    const last = data[data.length - 1]; // sorted chronologically, so last is newest
+                    const prev = data[0];
+                    const varPct = prev.valor !== 0 ? (((last.valor - prev.valor) / prev.valor) * 100).toFixed(1) : 0;
+                    
+                    const isPositive = parseFloat(varPct) >= 0;
+                    // For rates (BADLAR), decreasing might be considered positive in some contexts, or we just show as is
+                    const badgeClass = isPositive ? 'badge-up' : 'badge-down';
+                    const badgeIcon = isPositive ? '▲' : '▼';
+                    
+                    grid.innerHTML += `
+                        <div class="glass-card">
+                            <div class="data-label">${varInfo.icon} ${varInfo.label}</div>
+                            <div class="indicator-hero" style="margin-top: 12px; margin-bottom: 8px;">
+                                <div class="data-value" style="font-size: 1.6rem;">${Number(last.valor).toLocaleString('es-AR', {maximumFractionDigits:1})}</div>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <div class="mini-trend" style="color:var(--text-muted); margin:0;">${last.fecha}</div>
+                                <span class="badge ${badgeClass}" style="font-size:0.7rem;">${badgeIcon} ${Math.abs(varPct)}%</span>
+                            </div>
+                        </div>
+                    `;
+                });
+            } catch (e) {
+                console.error('Error fetching top variables', e);
+                grid.innerHTML = '<div style="color:var(--danger);padding:16px;">Error cargando cifras clave BCRA.</div>';
+            }
+        }
+
+        async function fetchBCRAExplorer() {
+            const btn = document.getElementById('btn-bcra');
+            btn.disabled = true;
+            btn.textContent = '⏳ Consultando...';
+
+            const var1  = document.getElementById('bcra-var1').value;
+            const var2  = document.getElementById('bcra-var2').value;
+            const var3  = document.getElementById('bcra-var3').value;
+            const limit = document.getElementById('bcra-limit').value;
+
+            const resultDiv   = document.getElementById('bcra-result');
+            resultDiv.innerHTML = '<div class="loader-container"><div class="spinner"></div></div>';
+
+            const varsToFetch = [var1];
+            if (var2) varsToFetch.push(var2);
+            if (var3) varsToFetch.push(var3);
+
+            try {
+                const results = await Promise.all(varsToFetch.map(v => fetchBCRAVariable(v, limit)));
+
+                // Scales config depends only on number of variables, not on data range
+                const scalesConfig = {
+                    x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', maxTicksLimit: 15, maxRotation: 45, font: { size: 10 } } },
+                    y: { type: 'linear', position: 'left', grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: CHART_COLORS[0], callback: v => v >= 1000 ? (v/1000).toFixed(0)+'K' : v } }
+                };
+                if (results.length >= 2) scalesConfig.y1 = { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, ticks: { color: CHART_COLORS[1], callback: v => v >= 1000 ? (v/1000).toFixed(0)+'K' : v } };
+                if (results.length >= 3) scalesConfig.y2 = { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, ticks: { color: CHART_COLORS[2], callback: v => v >= 1000 ? (v/1000).toFixed(0)+'K' : v } };
+
+                resultDiv.innerHTML = `
+                    <div class="glass-card">
+                        <div class="bcra-stats" id="bcra-stats-row"></div>
+                        <div class="emae-range-wrap">
+                            <div class="emae-range-labels">
+                                <span class="lbl" id="bcra-lbl-from">—</span>
+                                <span class="sep">→</span>
+                                <span class="lbl" id="bcra-lbl-to">—</span>
+                            </div>
+                            <div class="emae-range-track">
+                                <div class="emae-range-fill" id="bcra-range-fill"></div>
+                                <input type="range" class="emae-slider" id="bcra-from">
+                                <input type="range" class="emae-slider" id="bcra-to">
+                            </div>
+                        </div>
+                        <div class="compare-chart-container"><canvas id="bcraCompareChart"></canvas></div>
+                    </div>
+                `;
+
+                if (bcraChart) { bcraChart.destroy(); bcraChart = null; }
+                setupBCRASlider(results, varsToFetch, scalesConfig);
+
+            } catch (e) {
+                console.error('BCRA Explorer error:', e);
+                resultDiv.innerHTML = `<div class="glass-card" style="text-align:center; color:var(--danger);">
+                    ⚠️ Error al consultar el BCRA: ${e.message}<br>
+                    <small style="color:var(--text-muted);">La API del BCRA puede tener latencia alta o restricciones de CORS. Intentá de nuevo.</small>
+                </div>`;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '📊 Consultar';
+            }
+        }
+
+        function setupBCRASlider(results, varsToFetch, scalesConfig) {
+            const refData = results.reduce((a, b) => a.length > b.length ? a : b, []);
+            const n       = refData.length;
+            const fromEl  = document.getElementById('bcra-from');
+            const toEl    = document.getElementById('bcra-to');
+
+            [fromEl, toEl].forEach(el => { el.min = 0; el.max = n - 1; });
+            fromEl.value = 0;
+            toEl.value   = n - 1;
+
+            function syncBCRA() {
+                let from = +fromEl.value;
+                let to   = +toEl.value;
+
+                if (from >= to) {
+                    if (document.activeElement === fromEl) { from = Math.max(0, to - 2); fromEl.value = from; }
+                    else { to = Math.min(n - 1, from + 2); toEl.value = to; }
+                }
+
+                // Update fill bar
+                const pFrom = (from / (n - 1)) * 100;
+                const pTo   = (to   / (n - 1)) * 100;
+                const fill  = document.getElementById('bcra-range-fill');
+                fill.style.left  = pFrom + '%';
+                fill.style.width = (pTo - pFrom) + '%';
+
+                // Date labels
+                const dateFrom = refData[from].fecha;
+                const dateTo   = refData[to].fecha;
+                document.getElementById('bcra-lbl-from').textContent = dateFrom;
+                document.getElementById('bcra-lbl-to').textContent   = dateTo;
+
+                // Slice each series by date range
+                const slices = results.map(data => data.filter(d => d.fecha >= dateFrom && d.fecha <= dateTo));
+
+                // Stats
+                let statsHtml = '';
+                slices.forEach((slice, i) => {
+                    const varInfo = BCRA_VARS.find(v => v.id == varsToFetch[i]);
+                    const label   = varInfo ? varInfo.name : `Variable ${varsToFetch[i]}`;
+                    if (!slice.length) {
+                        statsHtml += `<div class="stat-mini"><div class="label" style="color:${CHART_COLORS[i]}">${label}</div><div class="val">Sin datos</div></div>`;
+                        return;
+                    }
+                    const last   = slice[slice.length - 1];
+                    const first  = slice[0];
+                    const min    = Math.min(...slice.map(d => d.valor));
+                    const max    = Math.max(...slice.map(d => d.valor));
+                    const varPct = first.valor !== 0 ? (((last.valor - first.valor) / first.valor) * 100).toFixed(1) : 0;
+
+                    statsHtml += `
+                        <div class="stat-mini">
+                            <div class="label" style="color:${CHART_COLORS[i]}">${label}</div>
+                            <div class="val">${Number(last.valor).toLocaleString('es-AR',{maximumFractionDigits:2})}</div>
+                            <div style="font-size:0.7rem;color:var(--text-muted);">${last.fecha}</div>
+                        </div>
+                        <div class="stat-mini">
+                            <div class="label">Var. período</div>
+                            <div class="val" style="color:${parseFloat(varPct)>=0?'var(--success)':'var(--danger)'};font-size:1.1rem;">${varPct}%</div>
+                        </div>
+                        <div class="stat-mini">
+                            <div class="label">Mínimo</div>
+                            <div class="val" style="font-size:1rem;">${Number(min).toLocaleString('es-AR',{maximumFractionDigits:2})}</div>
+                        </div>
+                        <div class="stat-mini">
+                            <div class="label">Máximo</div>
+                            <div class="val" style="font-size:1rem;">${Number(max).toLocaleString('es-AR',{maximumFractionDigits:2})}</div>
+                        </div>
+                    `;
+                });
+                document.getElementById('bcra-stats-row').innerHTML = statsHtml;
+
+                // Chart
+                const longestSlice = slices.reduce((a, b) => a.length > b.length ? a : b, []);
+                const labels = longestSlice.map(d => d.fecha);
+
+                if (!bcraChart) {
+                    const ctx      = document.getElementById('bcraCompareChart').getContext('2d');
+                    const datasets = slices.map((slice, i) => {
+                        const varInfo = BCRA_VARS.find(v => v.id == varsToFetch[i]);
+                        return {
+                            label: varInfo ? varInfo.name : `Var ${varsToFetch[i]}`,
+                            data: slice.map(d => d.valor),
+                            borderColor: CHART_COLORS[i],
+                            backgroundColor: CHART_COLORS[i] + '15',
+                            fill: slices.length === 1,
+                            tension: 0.3,
+                            pointRadius: slice.length > 100 ? 0 : 2,
+                            borderWidth: 2,
+                            yAxisID: i === 0 ? 'y' : 'y' + i
+                        };
+                    });
+                    bcraChart = new Chart(ctx, {
+                        type: 'line',
+                        data: { labels, datasets },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            animation: { duration: 250 },
+                            interaction: { mode: 'index', intersect: false },
+                            plugins: {
+                                legend: { position: 'top', labels: { color: '#e2e8f0', usePointStyle: true, padding: 16 } },
+                                tooltip: { mode: 'index', intersect: false }
+                            },
+                            scales: scalesConfig
+                        }
+                    });
+                } else {
+                    bcraChart.data.labels = labels;
+                    slices.forEach((slice, i) => {
+                        if (bcraChart.data.datasets[i]) {
+                            bcraChart.data.datasets[i].data        = slice.map(d => d.valor);
+                            bcraChart.data.datasets[i].pointRadius = slice.length > 100 ? 0 : 2;
+                        }
+                    });
+                    bcraChart.update('none');
+                }
+            }
+
+            fromEl.addEventListener('input', syncBCRA);
+            toEl.addEventListener('input', syncBCRA);
+            syncBCRA();
+        }
+
+        // ======== DÓLARES ========
+        async function fetchDolares() {
+            try {
+                const res = await fetch('https://api.argentinadatos.com/v1/cotizaciones/dolares');
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const data = await res.json();
+                const latest = {};
+                data.forEach(item => { latest[item.casa] = item; });
+                const grid = document.getElementById('dolares-grid');
+                grid.innerHTML = '';
+                const wanted = [
+                    { key: 'oficial', label: 'Dólar Oficial', color: '#3b82f6' },
+                    { key: 'blue', label: 'Dólar Blue', color: '#8b5cf6' },
+                    { key: 'contadoconliqui', label: 'Dólar CCL', color: '#10b981' },
+                ];
+                wanted.forEach(w => {
+                    const d = latest[w.key];
+                    if (!d) return;
+                    const fecha = (d.fecha || '').split('T')[0];
+                    grid.innerHTML += `
+                        <div class="glass-card dolar-card">
+                            <div class="data-label">${w.label}</div>
+                            <div class="mini-trend" style="color:var(--text-muted);">🗓 ${fecha}</div>
+                            <div class="dolar-prices">
+                                <div class="price-box"><span>Compra</span><b style="color:${w.color}">$${Number(d.compra).toLocaleString('es-AR')}</b></div>
+                                <div class="price-box"><span>Venta</span><b style="color:${w.color}">$${Number(d.venta).toLocaleString('es-AR')}</b></div>
+                            </div>
+                        </div>`;
+                });
+            } catch (e) {
+                document.getElementById('dolares-grid').innerHTML = '<div style="color:#ef4444;padding:16px;">Error cargando cotizaciones.</div>';
+            }
+        }
+
+        // ======== RIESGO PAÍS ========
+        let riesgoChart = null;
+        let riesgoAllData = [];
+
+        async function fetchRiesgoPais() {
+            const section = document.getElementById('riesgo-section');
+            try {
+                const res = await fetch('https://api.argentinadatos.com/v1/finanzas/indices/riesgo-pais');
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                riesgoAllData = await res.json();
+                renderRiesgoPais();
+            } catch (e) {
+                section.innerHTML = '<div style="color:var(--danger);padding:16px;">Error cargando riesgo país.</div>';
+            }
+        }
+
+        function renderRiesgoPais() {
+            const data = riesgoAllData;
+            const section = document.getElementById('riesgo-section');
+            if (!data.length) return;
+
+            const last = data[data.length - 1];
+            const prev = data[data.length - 2];
+            const diff = last.valor - prev.valor;
+            const diffPct = ((diff / prev.valor) * 100).toFixed(1);
+            const badgeClass = diff <= 0 ? 'badge badge-up' : 'badge badge-down';
+            const badgeText = diff <= 0 ? `▼ ${Math.abs(diff)} (${Math.abs(diffPct)}%)` : `▲ ${diff} (${diffPct}%)`;
+
+            section.innerHTML = `
+                <div class="data-label">Riesgo País (EMBI+)</div>
+                <div class="indicator-hero">
+                    <div class="data-value">${last.valor} pts</div>
+                    <span class="badge ${badgeClass}">${badgeText}</span>
+                </div>
+                <div class="mini-trend" style="color:var(--text-muted);">Último dato: ${last.fecha}</div>
+                <div class="emae-range-wrap" style="margin-top:16px;">
+                    <div class="emae-range-labels">
+                        <span class="lbl" id="riesgo-lbl-from">—</span>
+                        <span class="sep">→</span>
+                        <span class="lbl" id="riesgo-lbl-to">—</span>
+                    </div>
+                    <div class="emae-range-track">
+                        <div class="emae-range-fill" id="riesgo-range-fill"></div>
+                        <input type="range" class="emae-slider" id="riesgo-from">
+                        <input type="range" class="emae-slider" id="riesgo-to">
+                    </div>
+                </div>
+                <div class="chart-container" style="height:260px;"><canvas id="riesgoChart"></canvas></div>
+            `;
+
+            if (riesgoChart) { riesgoChart.destroy(); riesgoChart = null; }
+            setupRiesgoSlider();
+        }
+
+        function setupRiesgoSlider() {
+            const data = riesgoAllData;
+            const n = data.length;
+            const fromEl = document.getElementById('riesgo-from');
+            const toEl = document.getElementById('riesgo-to');
+
+            [fromEl, toEl].forEach(el => { el.min = 0; el.max = n - 1; });
+            fromEl.value = Math.max(0, n - 90);
+            toEl.value = n - 1;
+
+            function syncRiesgo() {
+                let from = +fromEl.value;
+                let to = +toEl.value;
+                if (from >= to) {
+                    if (document.activeElement === fromEl) { from = Math.max(0, to - 2); fromEl.value = from; }
+                    else { to = Math.min(n - 1, from + 2); toEl.value = to; }
+                }
+
+                const pFrom = (from / (n - 1)) * 100;
+                const pTo   = (to   / (n - 1)) * 100;
+                document.getElementById('riesgo-range-fill').style.left  = pFrom + '%';
+                document.getElementById('riesgo-range-fill').style.width = (pTo - pFrom) + '%';
+                document.getElementById('riesgo-lbl-from').textContent = data[from].fecha;
+                document.getElementById('riesgo-lbl-to').textContent   = data[to].fecha;
+
+                const slice = data.slice(from, to + 1);
+
+                if (!riesgoChart) {
+                    const ctx = document.getElementById('riesgoChart').getContext('2d');
+                    riesgoChart = new Chart(ctx, {
+                        type: 'line',
+                        data: { labels: slice.map(r => r.fecha), datasets: [{ label: 'Riesgo País', data: slice.map(r => r.valor), borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.08)', fill: true, tension: 0.35, pointRadius: slice.length > 120 ? 0 : 2, borderWidth: 2 }] },
+                        options: { responsive: true, maintainAspectRatio: false, animation: { duration: 250 }, plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false, callbacks: { label: item => `${item.raw} puntos` } } }, scales: { x: { display: false }, y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b' } } }, interaction: { mode: 'nearest', axis: 'x', intersect: false } }
+                    });
+                } else {
+                    riesgoChart.data.labels = slice.map(r => r.fecha);
+                    riesgoChart.data.datasets[0].data = slice.map(r => r.valor);
+                    riesgoChart.data.datasets[0].pointRadius = slice.length > 120 ? 0 : 2;
+                    riesgoChart.update('none');
+                }
+            }
+
+            fromEl.addEventListener('input', syncRiesgo);
+            toEl.addEventListener('input', syncRiesgo);
+            syncRiesgo();
+        }
+
+        // ======== INFLACIÓN ========
+        let inflacionChart = null;
+        let inflacionAllData = [];
+
+        async function fetchInflacion() {
+            const section = document.getElementById('inflacion-section');
+            try {
+                const res = await fetch('https://api.argentinadatos.com/v1/finanzas/indices/inflacion');
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                inflacionAllData = await res.json();
+                renderInflacion();
+            } catch (e) {
+                section.innerHTML = '<div style="color:var(--danger);padding:16px;">Error cargando inflación.</div>';
+            }
+        }
+
+        function renderInflacion() {
+            const data = inflacionAllData;
+            const section = document.getElementById('inflacion-section');
+            if (!data.length) return;
+
+            const last = data[data.length - 1];
+            const prev = data[data.length - 2];
+            const diff = (last.valor - prev.valor).toFixed(1);
+            const badgeClass = parseFloat(diff) <= 0 ? 'badge badge-up' : 'badge badge-down';
+            const badgeText = parseFloat(diff) <= 0 ? `▼ ${Math.abs(diff)} pp vs anterior` : `▲ ${diff} pp vs anterior`;
+            const fechaLabel = new Date(last.fecha).toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
+
+            section.innerHTML = `
+                <div class="data-label">Inflación Mensual (IPC)</div>
+                <div class="indicator-hero">
+                    <div class="data-value">${last.valor}%</div>
+                    <span class="badge ${badgeClass}">${badgeText}</span>
+                </div>
+                <div class="mini-trend" style="color:var(--text-muted);">Período: ${fechaLabel}</div>
+                <div class="emae-range-wrap" style="margin-top:16px;">
+                    <div class="emae-range-labels">
+                        <span class="lbl" id="inflacion-lbl-from">—</span>
+                        <span class="sep">→</span>
+                        <span class="lbl" id="inflacion-lbl-to">—</span>
+                    </div>
+                    <div class="emae-range-track">
+                        <div class="emae-range-fill" id="inflacion-range-fill"></div>
+                        <input type="range" class="emae-slider" id="inflacion-from">
+                        <input type="range" class="emae-slider" id="inflacion-to">
+                    </div>
+                </div>
+                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap:12px; margin:16px 0;">
+                    <div class="stat-mini">
+                        <div class="label">Var. Interanual</div>
+                        <div class="val" id="inflacion-yoy-val" style="color:var(--danger);">—</div>
+                        <div style="font-size:0.7rem;color:var(--text-muted);" id="inflacion-yoy-label">Últimos 12 meses al fin del período</div>
+                    </div>
+                    <div class="stat-mini">
+                        <div class="label">Var. del Segmento</div>
+                        <div class="val" id="inflacion-seg-val" style="color:var(--danger);">—</div>
+                        <div style="font-size:0.7rem;color:var(--text-muted);" id="inflacion-seg-label">Acumulado en período seleccionado</div>
+                    </div>
+                    <div class="stat-mini">
+                        <div class="label">Calculadora de Inflación</div>
+                        <div style="display:flex; align-items:center; gap:6px; margin-top:8px;">
+                            <span style="color:var(--text-muted); font-size:1rem; flex-shrink:0;">$</span>
+                            <input type="number" id="inflacion-calc-input" min="0" placeholder="Ingresá un monto"
+                                style="background:rgba(30,41,59,0.8);color:white;border:1px solid var(--border-color);padding:6px 10px;border-radius:6px;font-family:'Inter',sans-serif;font-size:0.9rem;outline:none;flex:1;min-width:0;">
+                        </div>
+                        <div id="inflacion-calc-result" style="margin-top:10px; text-align:center; display:none;">
+                            <div style="font-size:0.7rem;color:var(--text-muted);">Equivale a hoy</div>
+                            <div id="inflacion-calc-value" style="font-family:'Outfit',sans-serif; font-size:1.6rem; font-weight:700; color:var(--accent);"></div>
+                            <div id="inflacion-calc-desc" style="font-size:0.7rem;color:var(--text-muted);"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chart-container"><canvas id="inflacionChart"></canvas></div>
+            `;
+
+            if (inflacionChart) { inflacionChart.destroy(); inflacionChart = null; }
+            document.getElementById('inflacion-calc-input').addEventListener('input', updateInflacionCalc);
+            setupInflacionSlider();
+        }
+
+        let _inflacionSliceRef = [];
+
+        function setupInflacionSlider() {
+            const data = inflacionAllData;
+            const n = data.length;
+            const fromEl = document.getElementById('inflacion-from');
+            const toEl   = document.getElementById('inflacion-to');
+
+            [fromEl, toEl].forEach(el => { el.min = 0; el.max = n - 1; });
+            fromEl.value = Math.max(0, n - 24);
+            toEl.value   = n - 1;
+
+            function syncInflacion() {
+                let from = +fromEl.value;
+                let to   = +toEl.value;
+                if (from >= to) {
+                    if (document.activeElement === fromEl) { from = Math.max(0, to - 2); fromEl.value = from; }
+                    else { to = Math.min(n - 1, from + 2); toEl.value = to; }
+                }
+
+                const pFrom = (from / (n - 1)) * 100;
+                const pTo   = (to   / (n - 1)) * 100;
+                document.getElementById('inflacion-range-fill').style.left  = pFrom + '%';
+                document.getElementById('inflacion-range-fill').style.width = (pTo - pFrom) + '%';
+
+                const fromLabel = data[from].fecha.substring(0, 7);
+                const toLabel   = data[to].fecha.substring(0, 7);
+                document.getElementById('inflacion-lbl-from').textContent = fromLabel;
+                document.getElementById('inflacion-lbl-to').textContent   = toLabel;
+
+                const slice = data.slice(from, to + 1);
+                _inflacionSliceRef = slice;
+
+                // Variación del segmento: producto compuesto
+                const segFactor = slice.reduce((acc, d) => acc * (1 + d.valor / 100), 1) - 1;
+                const segPct = (segFactor * 100).toFixed(1);
+                document.getElementById('inflacion-seg-val').textContent = segPct + '%';
+                document.getElementById('inflacion-seg-label').textContent = `Acumulado: ${fromLabel} → ${toLabel}`;
+
+                // Variación interanual: últimos 12 meses al fin del período seleccionado
+                const yoySlice = to >= 12 ? data.slice(to - 11, to + 1) : data.slice(0, to + 1);
+                const yoyFactor = yoySlice.reduce((acc, d) => acc * (1 + d.valor / 100), 1) - 1;
+                const yoyPct = (yoyFactor * 100).toFixed(1);
+                document.getElementById('inflacion-yoy-val').textContent = yoyPct + '%';
+                document.getElementById('inflacion-yoy-label').textContent = `Últimos 12 meses al ${toLabel}`;
+
+                // Calculadora
+                updateInflacionCalc();
+
+                // Chart
+                const labels = slice.map(r => new Date(r.fecha).toLocaleDateString('es-AR', { month: 'short', year: '2-digit' }));
+                const vals   = slice.map(r => r.valor);
+                const colors = slice.map(r => r.valor > 5 ? 'rgba(239,68,68,0.6)' : 'rgba(16,185,129,0.6)');
+
+                if (!inflacionChart) {
+                    const ctx = document.getElementById('inflacionChart').getContext('2d');
+                    inflacionChart = new Chart(ctx, {
+                        type: 'bar',
+                        data: { labels, datasets: [{ label: 'IPC %', data: vals, backgroundColor: colors, borderRadius: 4, borderSkipped: false }] },
+                        options: { responsive: true, maintainAspectRatio: false, animation: { duration: 250 }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: item => `${item.raw}% mensual` } } }, scales: { x: { grid: { display: false }, ticks: { color: '#64748b', maxRotation: 45, font: { size: 10 } } }, y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', callback: v => v + '%' } } } }
+                    });
+                } else {
+                    inflacionChart.data.labels = labels;
+                    inflacionChart.data.datasets[0].data = vals;
+                    inflacionChart.data.datasets[0].backgroundColor = colors;
+                    inflacionChart.update('none');
+                }
+            }
+
+            fromEl.addEventListener('input', syncInflacion);
+            toEl.addEventListener('input', syncInflacion);
+            syncInflacion();
+        }
+
+        function updateInflacionCalc() {
+            const input = document.getElementById('inflacion-calc-input');
+            const resultDiv = document.getElementById('inflacion-calc-result');
+            if (!input || !resultDiv) return;
+            const amount = parseFloat(input.value);
+            if (!amount || isNaN(amount) || amount <= 0 || !_inflacionSliceRef.length) {
+                resultDiv.style.display = 'none';
+                return;
+            }
+            const factor = _inflacionSliceRef.reduce((acc, d) => acc * (1 + d.valor / 100), 1);
+            const inflated = amount * factor;
+            const pct = ((factor - 1) * 100).toFixed(1);
+            const fromDate = _inflacionSliceRef[0].fecha.substring(0, 7);
+            const toDate   = _inflacionSliceRef[_inflacionSliceRef.length - 1].fecha.substring(0, 7);
+            document.getElementById('inflacion-calc-value').textContent =
+                '$' + inflated.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            document.getElementById('inflacion-calc-desc').textContent =
+                `De ${fromDate} a ${toDate} · +${pct}%`;
+            resultDiv.style.display = 'block';
+        }
+
+        // ======== EMAE ========
+        const EMAE_SERIES = {
+            original: '143.3_NO_PR_2004_A_21',
+            desest:   '143.3_NO_D_PR_2004_A_24'
+        };
+
+        let emaeChart = null;
+        const emaeCache = {};
+
+        async function fetchEMAE() {
+            const section = document.getElementById('emae-section');
+            try {
+                const base   = 'https://apis.datos.gob.ar/series/api/series/';
+                const params = 'limit=300&format=json&sort=asc';
+                const [resOrig, resDesest] = await Promise.all([
+                    fetch(`${base}?ids=${EMAE_SERIES.original}&${params}`),
+                    fetch(`${base}?ids=${EMAE_SERIES.desest}&${params}`)
+                ]);
+                if (!resOrig.ok) throw new Error(`HTTP ${resOrig.status}`);
+
+                const [jsonOrig, jsonDesest] = await Promise.all([resOrig.json(), resDesest.json()]);
+
+                emaeCache.original = (jsonOrig.data || [])
+                    .map(([fecha, valor]) => ({ fecha: fecha.substring(0, 7), valor }))
+                    .filter(d => d.valor !== null);
+
+                emaeCache.desest = resDesest.ok
+                    ? (jsonDesest.data || [])
+                        .map(([fecha, valor]) => ({ fecha: fecha.substring(0, 7), valor }))
+                        .filter(d => d.valor !== null)
+                    : [];
+
+                renderEMAE('original');
+            } catch (e) {
+                console.error('EMAE error:', e);
+                section.innerHTML = `<div style="color:var(--danger);padding:16px;">⚠️ Error cargando datos del EMAE: ${e.message}</div>`;
+            }
+        }
+
+        function renderEMAE(seriesType) {
+            const fullData = emaeCache[seriesType] || [];
+            const section  = document.getElementById('emae-section');
+
+            if (!fullData.length) {
+                section.innerHTML = '<div style="padding:16px;color:var(--text-muted);">Sin datos disponibles.</div>';
+                return;
+            }
+
+            if (emaeChart) { emaeChart.destroy(); emaeChart = null; }
+
+            section.innerHTML = `
+                <div class="emae-header">
+                    <div>
+                        <div class="data-label">EMAE — Índice base 2004=100</div>
+                        <div style="font-size:0.75rem;color:var(--text-muted);">Fuente: SSPM · datos.gob.ar</div>
+                    </div>
+                    <div class="emae-toggle">
+                        <button class="emae-toggle-btn ${seriesType==='original'?'active':''}" onclick="renderEMAE('original')">Originales</button>
+                        <button class="emae-toggle-btn ${seriesType==='desest'?'active':''}" onclick="renderEMAE('desest')">Desestacionalizado</button>
+                    </div>
+                </div>
+                <div class="emae-stats" id="emae-stats-row"></div>
+                <div class="emae-range-wrap">
+                    <div class="emae-range-labels">
+                        <span class="lbl" id="emae-lbl-from">—</span>
+                        <span class="sep">→</span>
+                        <span class="lbl" id="emae-lbl-to">—</span>
+                    </div>
+                    <div class="emae-range-track">
+                        <div class="emae-range-fill" id="emae-range-fill"></div>
+                        <input type="range" class="emae-slider" id="emae-from">
+                        <input type="range" class="emae-slider" id="emae-to">
+                    </div>
+                </div>
+                <div class="emae-chart-container"><canvas id="emaeChartCanvas"></canvas></div>
+            `;
+
+            setupEmaeSlider(fullData, seriesType);
+        }
+
+        function setupEmaeSlider(fullData, seriesType) {
+            const n       = fullData.length;
+            const color   = seriesType === 'original' ? '#3b82f6' : '#10b981';
+            const sLabel  = seriesType === 'original' ? 'Series Originales' : 'Desestacionalizado';
+            const fromEl  = document.getElementById('emae-from');
+            const toEl    = document.getElementById('emae-to');
+
+            [fromEl, toEl].forEach(el => { el.min = 0; el.max = n - 1; });
+            fromEl.value = Math.max(0, n - 60);  // default: últimos 60 meses
+            toEl.value   = n - 1;
+
+            function syncSlider() {
+                let from = +fromEl.value;
+                let to   = +toEl.value;
+
+                // Prevent handles from crossing (min gap 2)
+                if (from >= to) {
+                    if (document.activeElement === fromEl) {
+                        from = Math.max(0, to - 2);
+                        fromEl.value = from;
+                    } else {
+                        to = Math.min(n - 1, from + 2);
+                        toEl.value = to;
+                    }
+                }
+
+                // Update fill bar
+                const pFrom = (from / (n - 1)) * 100;
+                const pTo   = (to   / (n - 1)) * 100;
+                const fill  = document.getElementById('emae-range-fill');
+                fill.style.left  = pFrom + '%';
+                fill.style.width = (pTo - pFrom) + '%';
+
+                // Update date labels
+                document.getElementById('emae-lbl-from').textContent = fullData[from].fecha;
+                document.getElementById('emae-lbl-to').textContent   = fullData[to].fecha;
+
+                // Compute stats on the visible slice
+                const slice    = fullData.slice(from, to + 1);
+                const last     = slice[slice.length - 1];
+                const prevM    = slice.length >= 2  ? slice[slice.length - 2]  : null;
+                const prevYear = to >= 12           ? fullData[to - 12]        : null;
+
+                const momPct = prevM    ? (((last.valor - prevM.valor)    / prevM.valor)    * 100).toFixed(2) : null;
+                const yoyPct = prevYear ? (((last.valor - prevYear.valor) / prevYear.valor) * 100).toFixed(2) : null;
+                const min    = Math.min(...slice.map(d => d.valor));
+                const max    = Math.max(...slice.map(d => d.valor));
+
+                const cVal = v => v !== null && parseFloat(v) >= 0 ? 'var(--success)' : 'var(--danger)';
+                const sign = v => v !== null && parseFloat(v) >= 0 ? '+' : '';
+
+                document.getElementById('emae-stats-row').innerHTML = `
+                    <div class="stat-mini">
+                        <div class="label">Índice EMAE</div>
+                        <div class="val">${Number(last.valor).toLocaleString('es-AR',{maximumFractionDigits:1})}</div>
+                        <div style="font-size:0.7rem;color:var(--text-muted);">${last.fecha} · ${sLabel}</div>
+                    </div>
+                    <div class="stat-mini">
+                        <div class="label">Var. mensual</div>
+                        <div class="val" style="font-size:1.1rem;color:${cVal(momPct)};">
+                            ${momPct !== null ? sign(momPct)+momPct+'%' : '—'}
+                        </div>
+                        <div style="font-size:0.7rem;color:var(--text-muted);">vs mes anterior</div>
+                    </div>
+                    <div class="stat-mini">
+                        <div class="label">Var. interanual</div>
+                        <div class="val" style="color:${cVal(yoyPct)};">
+                            ${yoyPct !== null ? sign(yoyPct)+yoyPct+'%' : '—'}
+                        </div>
+                        <div style="font-size:0.7rem;color:var(--text-muted);">vs mismo mes año anterior</div>
+                    </div>
+                    <div class="stat-mini">
+                        <div class="label">Mín / Máx (selección)</div>
+                        <div class="val" style="font-size:0.9rem;">
+                            ${Number(min).toLocaleString('es-AR',{maximumFractionDigits:1})}
+                            <span style="color:var(--text-muted);font-size:0.75rem;"> / </span>
+                            ${Number(max).toLocaleString('es-AR',{maximumFractionDigits:1})}
+                        </div>
+                    </div>
+                `;
+
+                // Create or update chart
+                if (!emaeChart) {
+                    const ctx = document.getElementById('emaeChartCanvas').getContext('2d');
+                    emaeChart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: slice.map(d => d.fecha),
+                            datasets: [{
+                                label: `EMAE (${sLabel})`,
+                                data: slice.map(d => d.valor),
+                                borderColor: color,
+                                backgroundColor: color + '18',
+                                fill: true,
+                                tension: 0.35,
+                                pointRadius: slice.length > 60 ? 0 : 2,
+                                pointHoverRadius: 5,
+                                borderWidth: 2
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            animation: { duration: 250 },
+                            interaction: { mode: 'index', intersect: false },
+                            plugins: {
+                                legend: { display: false },
+                                tooltip: {
+                                    mode: 'index', intersect: false,
+                                    callbacks: { label: item => `EMAE: ${Number(item.raw).toLocaleString('es-AR',{maximumFractionDigits:1})}` }
+                                }
+                            },
+                            scales: {
+                                x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', maxTicksLimit: 12, maxRotation: 45, font: { size: 10 } } },
+                                y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', callback: v => v.toFixed(0) } }
+                            }
+                        }
+                    });
+                } else {
+                    emaeChart.data.labels                   = slice.map(d => d.fecha);
+                    emaeChart.data.datasets[0].data         = slice.map(d => d.valor);
+                    emaeChart.data.datasets[0].pointRadius  = slice.length > 60 ? 0 : 2;
+                    emaeChart.update('none'); // sin animación para drag fluido
+                }
+            }
+
+            fromEl.addEventListener('input', syncSlider);
+            toEl.addEventListener('input', syncSlider);
+            syncSlider(); // render inicial
+        }
+
+        // ======== INIT ========
+        document.addEventListener('DOMContentLoaded', () => {
+            populateSelectors();
+            fetchTopBCRA();
+            fetchDolares();
+            fetchRiesgoPais();
+            fetchInflacion();
+            fetchEMAE();
+        });
+    </script>
+</body>
+</html>

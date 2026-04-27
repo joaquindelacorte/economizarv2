@@ -1,0 +1,1282 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Precios de Combustible</title>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7056671058245686"
+     crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="estilos_compartidos.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5/papaparse.min.js"></script>
+    <style>
+        body { padding: 32px; background-color: transparent; }
+        @media (max-width: 768px) { body { padding: 16px; } }
+
+        .section-title {
+            font-family: 'Outfit', sans-serif; font-size: 1.2rem; margin: 0 0 16px 0;
+            padding-bottom: 8px; border-bottom: 1px solid var(--border-color);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+
+        /* KPI */
+        .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 24px; }
+        .kpi-card {
+            background: rgba(30,41,59,0.7); backdrop-filter: blur(8px);
+            border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 16px; text-align: center;
+            transition: transform 0.2s;
+        }
+        .kpi-card:hover { transform: translateY(-2px); }
+        .kpi-label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-bottom: 4px; }
+        .kpi-value { font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 1.5rem; color: #fff; }
+        .kpi-sub { font-size: 0.68rem; color: var(--text-muted); margin-top: 4px; }
+
+        /* Fuel tabs */
+        .fuel-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+        .fuel-tab {
+            padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border-color);
+            background: rgba(30,41,59,0.5); color: var(--text-secondary); cursor: pointer;
+            font-size: 0.82rem; font-weight: 600; transition: all 0.2s;
+        }
+        .fuel-tab:hover { background: rgba(59,130,246,0.15); border-color: rgba(59,130,246,0.4); color: #fff; }
+        .fuel-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+        /* Map */
+        #map {
+            height: 520px; border-radius: 12px; overflow: hidden;
+            border: 1px solid var(--border-color); background: #0f172a;
+        }
+        .leaflet-container { background: #0f172a !important; }
+
+        /* Map legend */
+        .map-legend {
+            background: rgba(15,23,42,0.92); border: 1px solid var(--border-color);
+            border-radius: 8px; padding: 10px 14px; font-size: 0.75rem;
+        }
+        .map-legend h4 { color: var(--text-secondary); margin-bottom: 8px; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        .legend-item { display: flex; align-items: center; gap: 8px; margin: 4px 0; color: var(--text-primary); }
+        .legend-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+
+        /* Progress */
+        .progress-bar { height: 3px; background: rgba(255,255,255,0.05); border-radius: 2px; margin-bottom: 16px; overflow: hidden; }
+        .progress-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.3s; }
+
+        /* Table */
+        .data-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.82rem; }
+        .data-table th {
+            text-align: left; padding: 10px 14px; color: var(--text-muted); font-size: 0.68rem;
+            text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;
+            border-bottom: 1px solid var(--border-color); position: sticky; top: 0;
+            background: rgba(15,23,42,0.98); z-index: 2; cursor: pointer;
+        }
+        .data-table th:hover { color: #fff; }
+        .data-table td { padding: 9px 14px; border-bottom: 1px solid rgba(255,255,255,0.03); color: var(--text-primary); }
+        .data-table tr:hover td { background: rgba(255,255,255,0.025); }
+        .data-table td.num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+        .table-scroll { max-height: 400px; overflow-y: auto; border-radius: 8px; border: 1px solid var(--border-color); }
+
+        /* Search */
+        .search-bar {
+            width: 100%; background: rgba(15,23,42,0.8); color: white; border: 1px solid var(--border-color);
+            padding: 10px 14px; border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 0.85rem;
+            outline: none; margin-bottom: 16px;
+        }
+        .search-bar:focus { border-color: var(--accent); }
+
+        .error-box { background: rgba(239,68,68,0.1); color: #ef4444; padding: 20px; border-radius: 8px; font-size: 0.85rem; text-align: center; }
+        .info-box { background: rgba(59,130,246,0.08); color: #60a5fa; padding: 20px; border-radius: 8px; font-size: 0.85rem; text-align: center; border: 1px dashed rgba(59,130,246,0.25); }
+
+        .chart-wrapper { position: relative; height: 340px; width: 100%; }
+
+        .badge-empresa {
+            display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.68rem; font-weight: 600;
+            background: rgba(59,130,246,0.15); color: #60a5fa;
+        }
+
+        .update-tag { font-size: 0.72rem; color: var(--text-muted); font-weight: 400; font-family: 'Inter', sans-serif; }
+
+        /* Ciudad filter */
+        .ciudad-filters { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; align-items: flex-end; }
+        .ciudad-filters select {
+            background: rgba(15,23,42,0.8); color: white; border: 1px solid var(--border-color);
+            padding: 10px 14px; border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 0.85rem;
+            outline: none; min-width: 200px; cursor: pointer;
+        }
+        .ciudad-filters select:focus { border-color: var(--accent); }
+        .ciudad-filters select:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        /* Station cards */
+        .station-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+        .station-card {
+            background: rgba(15,23,42,0.6); border: 1px solid var(--border-color);
+            border-radius: 12px; padding: 14px; position: relative; transition: all 0.2s;
+        }
+        .station-card:hover { background: rgba(30,41,59,0.8); transform: translateY(-2px); }
+        .station-card.cheapest { border-color: #10b981; box-shadow: 0 0 12px rgba(16,185,129,0.2); }
+        .freshness-pill {
+            position: absolute; top: 10px; right: 12px;
+            font-size: 0.65rem; font-weight: 700; display: flex; align-items: center; gap: 4px;
+        }
+        .freshness-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+        .stale-warning {
+            font-size: 0.68rem; color: #f59e0b; margin-top: 6px; font-weight: 600;
+            background: rgba(245,158,11,0.08); padding: 3px 8px; border-radius: 4px; display: inline-block;
+        }
+        .station-brand {
+            display: inline-block; padding: 3px 10px; border-radius: 6px; font-size: 0.72rem; font-weight: 700;
+            background: rgba(59,130,246,0.15); color: #60a5fa; margin-bottom: 8px;
+        }
+        .station-price {
+            font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 1.6rem;
+            margin: 6px 0;
+        }
+        .station-addr { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; line-height: 1.4; }
+        .station-horario { font-size: 0.68rem; color: var(--text-muted); margin-top: 4px; }
+        .savings-badge {
+            display: inline-block; margin-top: 8px; padding: 3px 10px; border-radius: 20px;
+            font-size: 0.72rem; font-weight: 700; background: rgba(16,185,129,0.15); color: #10b981;
+        }
+        .ciudad-summary {
+            display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 16px;
+            padding: 14px 16px; background: rgba(59,130,246,0.06);
+            border-radius: 10px; border: 1px solid rgba(59,130,246,0.15);
+            font-size: 0.82rem; color: var(--text-secondary);
+        }
+        .ciudad-summary strong { color: #fff; }
+
+        /* Filter step indicators */
+        .filter-step { display: flex; flex-direction: column; }
+        .filter-label { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
+        .filter-step-num {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 18px; height: 18px; border-radius: 50%;
+            background: rgba(59,130,246,0.35); color: #fff;
+            font-size: 0.65rem; font-weight: 700; flex-shrink: 0; transition: background 0.3s;
+        }
+        .filter-step-num.done { background: #10b981; }
+        .filter-arrow { font-size: 1.3rem; color: rgba(255,255,255,0.15); align-self: flex-end; padding-bottom: 10px; user-select: none; }
+        @media (max-width: 640px) { .filter-arrow { display: none; } }
+        .filter-clear-btn {
+            align-self: flex-end; background: rgba(239,68,68,0.1); color: #ef4444;
+            border: 1px solid rgba(239,68,68,0.3); padding: 8px 14px; border-radius: 8px;
+            cursor: pointer; font-size: 0.78rem; font-weight: 600; transition: all 0.2s; white-space: nowrap;
+        }
+        .filter-clear-btn:hover { background: rgba(239,68,68,0.22); }
+
+        /* Google Maps / in-map buttons */
+        .station-btn-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+        .maps-ext-btn {
+            display: inline-flex; align-items: center; gap: 4px;
+            background: rgba(16,185,129,0.1); color: #10b981;
+            border: 1px solid rgba(16,185,129,0.3); padding: 5px 10px;
+            border-radius: 6px; font-size: 0.72rem; font-weight: 600;
+            text-decoration: none; transition: all 0.2s;
+        }
+        .maps-ext-btn:hover { background: rgba(16,185,129,0.22); color: #34d399; }
+    </style>
+</head>
+<body>
+
+    <div class="page-header stagger-1 fade-in">
+        <h1 class="page-title">⛽ Precios de Combustible</h1>
+        <p class="page-subtitle">Precios en surtidor por provincia · Actualización diaria · Datos: Secretaría de Energía de la Nación</p>
+    </div>
+
+    <!-- Progress bar -->
+    <div class="progress-bar" id="progress-wrap" style="display:none">
+        <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+    </div>
+    <div id="status-msg" style="font-size:0.8rem; color:var(--text-muted); margin-bottom:16px; text-align:center;"></div>
+
+    <!-- Fuel type tabs -->
+    <div class="fuel-tabs stagger-1 fade-in" id="fuel-tabs"></div>
+
+    <!-- Ciudad filter — primera sección visible -->
+    <div class="glass-card stagger-2 fade-in" style="margin-bottom: 24px;" id="ciudad-section">
+        <h2 class="section-title">📍 ¿Dónde me conviene cargar?</h2>
+        <div class="ciudad-filters">
+            <div class="filter-step">
+                <div class="filter-label"><span class="filter-step-num" id="step-1">1</span> Provincia</div>
+                <select id="filter-prov" onchange="onProvChange()">
+                    <option value="">— Seleccioná una provincia —</option>
+                </select>
+            </div>
+            <span class="filter-arrow">›</span>
+            <div class="filter-step">
+                <div class="filter-label"><span class="filter-step-num" id="step-2">2</span> Ciudad / Localidad</div>
+                <select id="filter-ciudad" onchange="onCiudadChange()" disabled>
+                    <option value="">— Primero elegí provincia —</option>
+                </select>
+            </div>
+            <span class="filter-arrow">›</span>
+            <div class="filter-step">
+                <div class="filter-label"><span class="filter-step-num" id="step-3">3</span> Combustible</div>
+                <select id="filter-fuel-ciudad" onchange="onFuelCiudadChange()" disabled>
+                    <option value="">— Seleccioná ciudad antes —</option>
+                </select>
+            </div>
+            <button class="filter-clear-btn" id="clear-filters-btn" onclick="clearCiudadFilters()" style="display:none">✕ Limpiar</button>
+        </div>
+        <div id="ciudad-results">
+            <div class="info-box" style="padding:16px;">Seleccioná provincia y ciudad para ver las estaciones más baratas de tu zona.</div>
+        </div>
+    </div>
+
+    <!-- KPI row -->
+    <div class="kpi-row stagger-3 fade-in" id="kpi-row">
+        <div class="kpi-card"><div class="kpi-label">Cargando datos...</div><div class="kpi-value" style="color:var(--text-muted)">—</div></div>
+    </div>
+
+    <!-- Historical price chart with province slicer -->
+    <div class="glass-card stagger-3 fade-in" style="margin-bottom: 24px;" id="historico-section">
+        <h2 class="section-title">
+            📈 Precio promedio por mes de vigencia
+            <span class="update-tag" id="historico-label"></span>
+        </h2>
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap;">
+            <label style="font-size:0.75rem; color:var(--text-muted); font-weight:600; text-transform:uppercase; letter-spacing:0.05em;">Comparar con:</label>
+            <select id="historico-prov-filter" onchange="onHistoricoProvChange()"
+                style="background:rgba(15,23,42,0.8); color:white; border:1px solid var(--border-color);
+                padding:6px 12px; border-radius:8px; font-family:'Inter',sans-serif; font-size:0.82rem; outline:none; cursor:pointer;">
+                <option value="">— Promedio nacional —</option>
+            </select>
+        </div>
+        <div id="historico-wrap" class="chart-wrapper" style="height:220px;">
+            <canvas id="chart-historico"></canvas>
+        </div>
+    </div>
+
+    <!-- Map + Chart row -->
+    <div class="grid-2 stagger-3 fade-in" style="margin-bottom: 24px;">
+        <div class="glass-card" style="padding:16px;">
+            <h2 class="section-title">
+                Mapa por Provincia
+                <span id="map-update-label" class="update-tag"></span>
+            </h2>
+            <div id="map"></div>
+        </div>
+        <div class="glass-card">
+            <h2 class="section-title">Ranking de Precios por Provincia</h2>
+            <div class="chart-wrapper"><canvas id="chart-provincias"></canvas></div>
+        </div>
+    </div>
+
+    <!-- Empresas chart -->
+    <div class="grid-2 stagger-4 fade-in" style="margin-bottom: 24px;">
+        <div class="glass-card">
+            <h2 class="section-title">Precio Promedio por Empresa</h2>
+            <div class="chart-wrapper"><canvas id="chart-empresas"></canvas></div>
+        </div>
+        <div class="glass-card">
+            <h2 class="section-title">Distribución de Precios</h2>
+            <div class="chart-wrapper"><canvas id="chart-hist"></canvas></div>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="glass-card stagger-5 fade-in">
+        <h2 class="section-title">Detalle por Provincia y Empresa</h2>
+        <input class="search-bar" id="table-search" placeholder="🔍 Buscar provincia, empresa o producto..." oninput="filterTable()" />
+        <div class="table-scroll" id="table-container">
+            <div class="info-box">Cargando datos desde la Secretaría de Energía...</div>
+        </div>
+    </div>
+
+    <script>
+    // ==================== CONFIG ====================
+
+    const WORKER_URL = 'https://scrapeodata.joaquindelacorte98.workers.dev/datos';
+
+    // Province centroids [lat, lng]
+    const PROVINCE_COORDS = {
+        'buenos aires':                    [-36.6769, -60.5588],
+        'ciudad autónoma de buenos aires': [-34.6037, -58.3816],
+        'caba':                            [-34.6037, -58.3816],
+        'capital federal':                 [-34.6037, -58.3816],
+        'catamarca':                       [-28.4696, -65.7852],
+        'chaco':                           [-26.3712, -60.7677],
+        'chubut':                          [-43.2935, -65.1132],
+        'córdoba':                         [-31.4166, -64.1834],
+        'cordoba':                         [-31.4166, -64.1834],
+        'corrientes':                      [-29.4192, -58.8159],
+        'entre ríos':                      [-31.7746, -60.4966],
+        'entre rios':                      [-31.7746, -60.4966],
+        'formosa':                         [-24.8951, -59.8916],
+        'jujuy':                           [-23.1853, -65.3008],
+        'la pampa':                        [-36.6166, -64.2833],
+        'la rioja':                        [-29.4127, -66.8578],
+        'mendoza':                         [-32.8908, -68.8272],
+        'misiones':                        [-26.8753, -54.6451],
+        'neuquén':                         [-38.9516, -68.0591],
+        'neuquen':                         [-38.9516, -68.0591],
+        'río negro':                       [-40.8135, -63.0000],
+        'rio negro':                       [-40.8135, -63.0000],
+        'salta':                           [-24.7828, -65.4232],
+        'san juan':                        [-30.6669, -68.5366],
+        'san luis':                        [-32.8950, -66.3357],
+        'santa cruz':                      [-51.6352, -69.2473],
+        'santa fe':                        [-30.7069, -60.9495],
+        'santiago del estero':             [-27.7951, -64.2615],
+        'tierra del fuego':                [-54.8019, -68.3029],
+        'tucumán':                         [-26.8241, -65.2226],
+        'tucuman':                         [-26.8241, -65.2226]
+    };
+
+    // State
+    let allData        = [];
+    let historicalData = [];
+    let fuelTypes      = [];
+    let activeFuel     = '';
+    let mapInstance    = null;
+    let mapLayers      = [];
+    let stationMarkers = [];
+    let chartProv      = null;
+    let chartEmp       = null;
+    let chartHist      = null;
+    let chartHistorico = null;
+    let tableData      = [];
+
+    // ==================== FETCH ====================
+
+    function setProgress(pct, msg) {
+        document.getElementById('progress-wrap').style.display = 'block';
+        document.getElementById('progress-fill').style.width = pct + '%';
+        if (msg) document.getElementById('status-msg').textContent = msg;
+    }
+
+    function hideProgress() {
+        document.getElementById('progress-wrap').style.display = 'none';
+        document.getElementById('status-msg').textContent = '';
+    }
+
+    async function fetchAllRecords() {
+        setProgress(30, 'Conectando con la API...');
+        const res = await fetch(WORKER_URL);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        setProgress(70, 'Descargando datos...');
+        const wrapper = await res.json();
+        setProgress(90, 'Procesando...');
+        // El Worker devuelve { data: "{\"data\":[...]}" } — doble JSON
+        const inner = typeof wrapper.data === 'string' ? JSON.parse(wrapper.data) : wrapper;
+        return Array.isArray(inner) ? inner : (inner.data || []);
+    }
+
+    // ==================== INIT ====================
+
+    async function init() {
+        initMap();
+
+        try {
+            const records = await fetchAllRecords();
+            setProgress(85, 'Analizando precios...');
+            processData(records);
+            hideProgress();
+        } catch(e) {
+            hideProgress();
+            showError(e.message);
+        }
+    }
+
+    function showError(msg) {
+        const html = `
+            <div class="error-box" style="grid-column:1/-1; line-height:1.8;">
+                ⚠️ ${msg}<br>
+                <small style="opacity:0.7">Los datos provienen de la Secretaría de Energía. Puede haber demora o indisponibilidad temporal.</small><br><br>
+                <button onclick="init()" style="background:rgba(239,68,68,0.2); color:#ef4444; border:1px solid rgba(239,68,68,0.4); padding:8px 20px; border-radius:8px; cursor:pointer; font-weight:600;">🔄 Reintentar</button>
+            </div>`;
+        document.getElementById('kpi-row').innerHTML = html;
+        document.getElementById('table-container').innerHTML = `<div class="error-box">⚠️ ${msg} <br><br><button onclick="init()" style="background:rgba(239,68,68,0.2); color:#ef4444; border:1px solid rgba(239,68,68,0.4); padding:8px 20px; border-radius:8px; cursor:pointer; font-weight:600;">🔄 Reintentar</button></div>`;
+    }
+
+    // ==================== DATA PROCESSING ====================
+
+    function normalizeProv(s) { return (s || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
+    function fmtPeso(n) { return '$' + Number(n).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+    function fmtNum(n,d=2) { return Number(n).toLocaleString('es-AR', { maximumFractionDigits: d }); }
+
+    function processData(rows) {
+        if (!rows || !rows.length) { showError('No se recibieron datos de la API.'); return; }
+
+        // Use exact CKAN field names (confirmed from API response)
+        const parsed = rows.map(r => ({
+            fecha:       String(r.indice_tiempo || r.fecha_vigencia || '').substring(0, 7),
+            prov:        String(r.provincia     || 'Sin dato').trim().toUpperCase(),
+            empresa:     String(r.empresabandera || r.empresa || 'Sin dato').trim(),
+            producto:    String(r.producto      || 'Sin dato').trim(),
+            precio:      typeof r.precio === 'number' ? r.precio : parseFloat(String(r.precio || '0').replace(',', '.')) || 0,
+            lat:         typeof r.latitud  === 'number' ? r.latitud  : parseFloat(r.latitud)  || null,
+            lng:         typeof r.longitud === 'number' ? r.longitud : parseFloat(r.longitud) || null,
+            region:      String(r.region    || '').trim(),
+            localidad:   String(r.localidad || '').trim(),
+            // Campos necesarios para identificar estaciones individuales
+            direccion:   String(r.direccion || r.domicilio || '').trim(),
+            tipohorario: String(r.tipohorario || 'Diurno').trim(),
+            idestacion:  String(r.idestacion || r.id_estacion || r.id || '').trim(),
+            fechaFull:   String(r.indice_tiempo || r.fecha_vigencia || '').substring(0, 10)
+        })).filter(r => r.precio > 100 && r.prov && r.producto);
+
+        if (!parsed.length) { showError('Los datos no contienen precios válidos (esperado > $100/L).'); return; }
+
+        // fecha_vigencia es la fecha de actualización de cada estación (no un período histórico).
+        // Usamos todos los registros como datos vigentes.
+        historicalData = parsed;
+        allData = parsed;
+
+        // Unique fuel types sorted by frequency
+        const fuelCount = {};
+        allData.forEach(r => { fuelCount[r.producto] = (fuelCount[r.producto] || 0) + 1; });
+        fuelTypes = Object.entries(fuelCount)
+            .sort((a,b) => b[1]-a[1])
+            .map(e => e[0]);
+
+        // Build fuel tabs
+        buildFuelTabs(fuelTypes);
+
+        // Default to most common fuel
+        activeFuel = fuelTypes[0];
+        document.querySelector('.fuel-tab')?.classList.add('active');
+
+        // Populate province slicer for historical chart
+        const provSel = document.getElementById('historico-prov-filter');
+        const provincias = [...new Set(historicalData.map(r => r.prov))].sort();
+        provSel.innerHTML = '<option value="">— Promedio nacional —</option>' +
+            provincias.map(p => `<option value="${p}">${p.charAt(0) + p.slice(1).toLowerCase()}</option>`).join('');
+
+        const dateStr = allData.length ? `${allData.length.toLocaleString('es-AR')} registros` : '';
+        document.getElementById('map-update-label').textContent = dateStr;
+
+        renderAll();
+        populateCiudadFilter();
+    }
+
+    function buildFuelTabs(types) {
+        const FUEL_ICONS = { 'nafta': '⛽', 'gasoil': '🚛', 'gnc': '🔵', 'diesel': '🚛', 'premium': '🌟', 'infinia': '🌟' };
+        const getIcon = (name) => {
+            const n = name.toLowerCase();
+            for (const [k,v] of Object.entries(FUEL_ICONS)) { if (n.includes(k)) return v; }
+            return '⛽';
+        };
+        const container = document.getElementById('fuel-tabs');
+        container.innerHTML = types.slice(0, 8).map((t, i) => `
+            <button class="fuel-tab" data-fuel="${t.replace(/"/g,'&quot;')}" onclick="setFuel('${t.replace(/'/g,"\\'")}', this)">${getIcon(t)} ${t}</button>
+        `).join('');
+    }
+
+    function setFuel(fuel, btn) {
+        activeFuel = fuel;
+        document.querySelectorAll('.fuel-tab').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        renderAll();
+
+        // Sync city section if a city is already selected
+        const prov   = document.getElementById('filter-prov').value;
+        const ciudad = document.getElementById('filter-ciudad').value;
+        if (prov && ciudad) {
+            const fuelSel = document.getElementById('filter-fuel-ciudad');
+            const fuelsEnCiudad = [...new Set(
+                allData.filter(r => r.prov === prov && r.localidad === ciudad).map(r => r.producto)
+            )];
+            if (fuelsEnCiudad.includes(fuel)) fuelSel.value = fuel;
+            renderCiudadResults(prov, ciudad, fuelSel.value);
+        }
+    }
+
+    function clearStationMarkers() {
+        stationMarkers.forEach(m => mapInstance && mapInstance.removeLayer(m));
+        stationMarkers = [];
+    }
+
+    function renderAll() {
+        clearStationMarkers();
+        const filtered = allData.filter(r => r.producto === activeFuel);
+        if (!filtered.length) return;
+
+        // Aggregate by province
+        const byProv = {};
+        filtered.forEach(r => {
+            const k = r.prov;
+            if (!byProv[k]) byProv[k] = { sum: 0, n: 0, prices: [] };
+            byProv[k].sum += r.precio; byProv[k].n++; byProv[k].prices.push(r.precio);
+        });
+        const provStats = Object.entries(byProv).map(([prov, s]) => ({
+            prov,
+            avg: s.sum / s.n,
+            min: Math.min(...s.prices),
+            max: Math.max(...s.prices),
+            n: s.n
+        })).sort((a,b) => a.avg - b.avg);
+
+        // Aggregate by empresa
+        const byEmp = {};
+        filtered.forEach(r => {
+            if (!byEmp[r.empresa]) byEmp[r.empresa] = { sum: 0, n: 0 };
+            byEmp[r.empresa].sum += r.precio; byEmp[r.empresa].n++;
+        });
+        const empStats = Object.entries(byEmp)
+            .map(([emp, s]) => ({ emp, avg: s.sum / s.n, n: s.n }))
+            .sort((a,b) => b.n - a.n).slice(0, 12);
+
+        const prices = filtered.map(r => r.precio);
+        const globalMin = Math.min(...prices);
+        const globalMax = Math.max(...prices);
+        const globalAvg = prices.reduce((a,b)=>a+b,0) / prices.length;
+
+        renderKPIs(provStats, globalAvg, globalMin, globalMax, filtered.length);
+        updateMap(provStats, globalMin, globalMax);
+        renderChartHistorico(historicalData);
+        renderChartProv(provStats);
+        renderChartEmpresa(empStats);
+        renderChartHistogram(prices);
+
+        // Build table data
+        tableData = filtered.map(r => r);
+        renderTable(tableData);
+    }
+
+    // ==================== KPIs ====================
+
+    function renderKPIs(provStats, avg, min, max, total) {
+        const cheapest  = provStats[0];
+        const mostExp   = provStats[provStats.length - 1];
+        const spread    = ((mostExp.avg - cheapest.avg) / cheapest.avg * 100);
+
+        document.getElementById('kpi-row').innerHTML = `
+            <div class="kpi-card">
+                <div class="kpi-label">Promedio Nacional</div>
+                <div class="kpi-value">${fmtPeso(avg)}</div>
+                <div class="kpi-sub">${fmtNum(total,0)} registros</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Más Barato</div>
+                <div class="kpi-value" style="color:#10b981; font-size:1.2rem;">${fmtPeso(cheapest.avg)}</div>
+                <div class="kpi-sub">${cheapest.prov}</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Más Caro</div>
+                <div class="kpi-value" style="color:#ef4444; font-size:1.2rem;">${fmtPeso(mostExp.avg)}</div>
+                <div class="kpi-sub">${mostExp.prov}</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Mínimo / Máximo</div>
+                <div class="kpi-value" style="font-size:1rem;">${fmtPeso(min)}<span style="color:var(--text-muted)"> — </span>${fmtPeso(max)}</div>
+                <div class="kpi-sub">rango absoluto</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Brecha Interprovincial</div>
+                <div class="kpi-value" style="color:#f59e0b;">${fmtNum(spread,1)}%</div>
+                <div class="kpi-sub">más caro vs más barato</div>
+            </div>
+        `;
+    }
+
+    // ==================== MAP ====================
+
+    function initMap() {
+        mapInstance = L.map('map', {
+            center: [-38.5, -63.5],
+            zoom: 4,
+            zoomControl: true,
+            scrollWheelZoom: false
+        });
+
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '© OpenStreetMap © CartoDB',
+            maxZoom: 18
+        }).addTo(mapInstance);
+    }
+
+    function priceColor(value, min, max) {
+        const t = Math.max(0, Math.min(1, (value - min) / (max - min || 1)));
+        // green(16,185,129) → yellow(245,158,11) → red(239,68,68)
+        let r, g, b;
+        if (t < 0.5) {
+            const tt = t * 2;
+            r = Math.round(16 + (245-16)*tt);
+            g = Math.round(185 + (158-185)*tt);
+            b = Math.round(129 + (11-129)*tt);
+        } else {
+            const tt = (t - 0.5) * 2;
+            r = Math.round(245 + (239-245)*tt);
+            g = Math.round(158 + (68-158)*tt);
+            b = Math.round(11 + (68-11)*tt);
+        }
+        return `rgb(${r},${g},${b})`;
+    }
+
+    function updateMap(provStats, globalMin, globalMax) {
+        mapLayers.forEach(l => mapInstance.removeLayer(l));
+        mapLayers = [];
+
+        const pMin = provStats.length ? provStats[0].avg : globalMin;
+        const pMax = provStats.length ? provStats[provStats.length-1].avg : globalMax;
+
+        // Build province centroid from actual station coordinates
+        const filtered = allData.filter(r => r.producto === activeFuel);
+        const provCoords = {};
+        filtered.forEach(r => {
+            if (!r.lat || !r.lng) return;
+            if (!provCoords[r.prov]) provCoords[r.prov] = { lats: [], lngs: [] };
+            provCoords[r.prov].lats.push(r.lat);
+            provCoords[r.prov].lngs.push(r.lng);
+        });
+
+        provStats.forEach(({ prov, avg, min, max, n }) => {
+            // Use computed centroid from station coordinates, fallback to hardcoded
+            let coords;
+            if (provCoords[prov]?.lats.length) {
+                const lats = provCoords[prov].lats;
+                const lngs = provCoords[prov].lngs;
+                coords = [
+                    lats.reduce((a,b)=>a+b,0)/lats.length,
+                    lngs.reduce((a,b)=>a+b,0)/lngs.length
+                ];
+            } else {
+                const key = normalizeProv(prov);
+                coords = PROVINCE_COORDS[key];
+            }
+            if (!coords) return;
+
+            const color = priceColor(avg, pMin, pMax);
+            const radius = 20000 + ((avg - pMin) / (pMax - pMin || 1)) * 30000;
+
+            const circle = L.circle(coords, {
+                radius,
+                color: color,
+                fillColor: color,
+                fillOpacity: 0.65,
+                weight: 2
+            }).bindPopup(`
+                <div style="font-family:'Inter',sans-serif; min-width:160px;">
+                    <strong style="font-size:0.95rem;">${prov}</strong><br>
+                    <span style="color:#94a3b8; font-size:0.75rem;">${activeFuel}</span><br><br>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px; font-size:0.82rem;">
+                        <span style="color:#94a3b8;">Promedio</span><span><b>${fmtPeso(avg)}</b></span>
+                        <span style="color:#94a3b8;">Mínimo</span><span style="color:#10b981;">${fmtPeso(min)}</span>
+                        <span style="color:#94a3b8;">Máximo</span><span style="color:#ef4444;">${fmtPeso(max)}</span>
+                        <span style="color:#94a3b8;">Registros</span><span>${n}</span>
+                    </div>
+                </div>
+            `).addTo(mapInstance);
+
+            mapLayers.push(circle);
+        });
+
+        // Add legend
+        const existingLegend = document.querySelector('.map-legend');
+        if (existingLegend) existingLegend.remove();
+
+        const legend = L.control({ position: 'bottomright' });
+        legend.onAdd = () => {
+            const div = L.DomUtil.create('div', 'map-legend');
+            div.innerHTML = `
+                <h4>Precio promedio</h4>
+                ${[0, 0.25, 0.5, 0.75, 1].map(t => {
+                    const price = pMin + t * (pMax - pMin);
+                    return `<div class="legend-item">
+                        <div class="legend-dot" style="background:${priceColor(price, pMin, pMax)}"></div>
+                        <span>${fmtPeso(price)}</span>
+                    </div>`;
+                }).join('')}
+            `;
+            return div;
+        };
+        legend.addTo(mapInstance);
+    }
+
+    // ==================== CHARTS ====================
+
+    function renderChartProv(provStats) {
+        const ctx = document.getElementById('chart-provincias').getContext('2d');
+        if (chartProv) chartProv.destroy();
+
+        const sorted = [...provStats].sort((a,b) => b.avg - a.avg);
+        const COLORS = sorted.map(p => {
+            const t = (p.avg - provStats[0].avg) / ((provStats[provStats.length-1].avg - provStats[0].avg) || 1);
+            return priceColor(t, 0, 1);
+        });
+
+        chartProv = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: sorted.map(p => p.prov.length > 15 ? p.prov.substring(0,13)+'…' : p.prov),
+                datasets: [{
+                    label: 'Precio promedio $/L',
+                    data: sorted.map(p => p.avg),
+                    backgroundColor: COLORS.map(c => c.replace('rgb','rgba').replace(')', ',0.75)')),
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: item => fmtPeso(item.raw) } }
+                },
+                scales: {
+                    x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', callback: v => '$'+fmtNum(v,0) } },
+                    y: { grid: { display: false }, ticks: { color: '#e2e8f0', font: { size: 9 } } }
+                }
+            }
+        });
+    }
+
+    function renderChartEmpresa(empStats) {
+        const ctx = document.getElementById('chart-empresas').getContext('2d');
+        if (chartEmp) chartEmp.destroy();
+
+        const COLORS = ['#3b82f6','#10b981','#f59e0b','#f43f5e','#8b5cf6','#06b6d4','#ec4899','#84cc16','#0ea5e9','#d946ef','#f97316','#14b8a6'];
+
+        chartEmp = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: empStats.map(e => e.emp.length > 18 ? e.emp.substring(0,16)+'…' : e.emp),
+                datasets: [{
+                    label: 'Precio promedio $/L',
+                    data: empStats.map(e => e.avg),
+                    backgroundColor: COLORS.map(c => c + 'BB'),
+                    borderRadius: 5
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: item => fmtPeso(item.raw) + ` (${empStats[item.dataIndex].n} pts)` } }
+                },
+                scales: {
+                    x: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 9 }, maxRotation: 45 } },
+                    y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', callback: v => '$'+fmtNum(v,0) } }
+                }
+            }
+        });
+    }
+
+    function renderChartHistogram(prices) {
+        const ctx = document.getElementById('chart-hist').getContext('2d');
+        if (chartHist) chartHist.destroy();
+
+        const min = Math.min(...prices);
+        const max = Math.max(...prices);
+        const bins = 20;
+        const binSize = (max - min) / bins;
+        const counts = new Array(bins).fill(0);
+        prices.forEach(p => {
+            const idx = Math.min(Math.floor((p - min) / binSize), bins - 1);
+            counts[idx]++;
+        });
+
+        const labels = counts.map((_, i) => fmtPeso(min + i * binSize));
+        const avg = prices.reduce((a,b)=>a+b,0)/prices.length;
+
+        chartHist = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [{
+                    label: 'Frecuencia',
+                    data: counts,
+                    backgroundColor: counts.map((_, i) => {
+                        const mid = min + (i + 0.5) * binSize;
+                        return priceColor(mid, min, max).replace('rgb','rgba').replace(')', ',0.7)');
+                    }),
+                    borderRadius: 3
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: item => `${item.raw} estaciones` } },
+                    annotation: {}
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: '#64748b', maxRotation: 45, font: { size: 9 },
+                            callback: function(val, idx) { return idx % 4 === 0 ? this.getLabelForValue(val) : ''; }
+                        }
+                    },
+                    y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b' } }
+                }
+            }
+        });
+    }
+
+    function renderChartHistorico(data) {
+        const section = document.getElementById('historico-section');
+        const selectedProv = document.getElementById('historico-prov-filter')?.value || '';
+
+        // Aggregate national average by month
+        function avgByMonth(records) {
+            const byF = {};
+            records.filter(r => r.producto === activeFuel && r.fecha).forEach(r => {
+                if (!byF[r.fecha]) byF[r.fecha] = { sum: 0, n: 0 };
+                byF[r.fecha].sum += r.precio;
+                byF[r.fecha].n++;
+            });
+            return byF;
+        }
+
+        const national = avgByMonth(data);
+        const fechas = Object.keys(national).sort();
+
+        if (fechas.length < 2) {
+            section.style.display = 'none';
+            return;
+        }
+        section.style.display = 'block';
+
+        const natAvgs = fechas.map(f => +(national[f].sum / national[f].n).toFixed(2));
+        const allVals = [...natAvgs];
+
+        // Province overlay (if selected)
+        let provAvgs = null;
+        if (selectedProv) {
+            const provByF = avgByMonth(data.filter(r => r.prov === selectedProv));
+            provAvgs = fechas.map(f => provByF[f] ? +(provByF[f].sum / provByF[f].n).toFixed(2) : null);
+            allVals.push(...provAvgs.filter(Boolean));
+        }
+
+        const minV = Math.min(...allVals);
+        const maxV = Math.max(...allVals);
+
+        const deltaLabel = natAvgs.length >= 2
+            ? ` · ${natAvgs.at(-1) >= natAvgs[0] ? '+' : ''}${fmtPeso(natAvgs.at(-1) - natAvgs[0])} desde primer registro`
+            : '';
+        document.getElementById('historico-label').textContent = activeFuel + deltaLabel;
+
+        document.getElementById('historico-wrap').innerHTML = '<canvas id="chart-historico"></canvas>';
+        const ctx = document.getElementById('chart-historico').getContext('2d');
+        if (chartHistorico) chartHistorico.destroy();
+
+        const datasets = [{
+            label: 'Promedio nacional',
+            data: natAvgs,
+            borderColor: '#3b82f6',
+            backgroundColor: 'rgba(59,130,246,0.07)',
+            borderWidth: 2.5,
+            pointRadius: natAvgs.map((v, i) =>
+                i === natAvgs.lastIndexOf(Math.min(...natAvgs)) || i === natAvgs.lastIndexOf(Math.max(...natAvgs)) ? 6 : 3),
+            pointBackgroundColor: natAvgs.map((v, i) =>
+                v === Math.min(...natAvgs) ? '#10b981' : v === Math.max(...natAvgs) ? '#ef4444' : '#3b82f6'),
+            tension: 0.35,
+            fill: !selectedProv
+        }];
+
+        if (provAvgs) {
+            datasets.push({
+                label: selectedProv,
+                data: provAvgs,
+                borderColor: '#f59e0b',
+                backgroundColor: 'rgba(245,158,11,0.07)',
+                borderWidth: 2,
+                pointRadius: 3,
+                pointBackgroundColor: '#f59e0b',
+                tension: 0.35,
+                fill: false,
+                borderDash: []
+            });
+        }
+
+        chartHistorico = new Chart(ctx, {
+            type: 'line',
+            data: { labels: fechas, datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { display: !!selectedProv, labels: { color: '#94a3b8', font: { size: 11 } } },
+                    tooltip: { callbacks: { label: item => ` ${item.dataset.label}: ${fmtPeso(item.raw)}/L` } }
+                },
+                scales: {
+                    x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#64748b', font: { size: 10 } } },
+                    y: {
+                        grid: { color: 'rgba(255,255,255,0.04)' },
+                        ticks: { color: '#64748b', callback: v => '$' + fmtNum(v, 0) },
+                        suggestedMin: minV * 0.97,
+                        suggestedMax: maxV * 1.03
+                    }
+                }
+            }
+        });
+    }
+
+    function onHistoricoProvChange() {
+        renderChartHistorico(historicalData);
+    }
+
+    // ==================== TABLE ====================
+
+    let sortCol = 'avg'; let sortAsc = true;
+
+    function renderTable(data) {
+        // Aggregate by province + empresa + producto
+        const aggKey = r => `${r.prov}|||${r.empresa}`;
+        const agg = {};
+        data.forEach(r => {
+            const k = aggKey(r);
+            if (!agg[k]) agg[k] = { prov: r.prov, empresa: r.empresa, producto: r.producto, sum: 0, n: 0, min: r.precio, max: r.precio };
+            agg[k].sum += r.precio; agg[k].n++;
+            if (r.precio < agg[k].min) agg[k].min = r.precio;
+            if (r.precio > agg[k].max) agg[k].max = r.precio;
+        });
+
+        let rows = Object.values(agg).map(r => ({ ...r, avg: r.sum / r.n }));
+        rows.sort((a,b) => sortAsc ? a[sortCol] - b[sortCol] : b[sortCol] - a[sortCol]);
+
+        const allAvg = rows.reduce((s,r)=>s+r.avg, 0) / rows.length;
+
+        let html = `<table class="data-table">
+            <thead><tr>
+                <th onclick="sortTable('prov')">Provincia ${sortCol==='prov'? (sortAsc?'▲':'▼'):''}</th>
+                <th>Empresa</th>
+                <th onclick="sortTable('avg')" style="text-align:right">Promedio ${sortCol==='avg'? (sortAsc?'▲':'▼'):''}</th>
+                <th onclick="sortTable('min')" style="text-align:right">Mínimo ${sortCol==='min'? (sortAsc?'▲':'▼'):''}</th>
+                <th onclick="sortTable('max')" style="text-align:right">Máximo ${sortCol==='max'? (sortAsc?'▲':'▼'):''}</th>
+                <th onclick="sortTable('n')" style="text-align:right">Estaciones ${sortCol==='n'? (sortAsc?'▲':'▼'):''}</th>
+            </tr></thead><tbody>`;
+
+        rows.forEach(r => {
+            const diff = allAvg > 0 ? ((r.avg - allAvg) / allAvg * 100) : 0;
+            const diffColor = diff > 2 ? '#ef4444' : diff < -2 ? '#10b981' : '#94a3b8';
+            const diffLabel = diff > 0 ? `+${fmtNum(diff,1)}%` : `${fmtNum(diff,1)}%`;
+            html += `<tr>
+                <td>${r.prov}</td>
+                <td><span class="badge-empresa">${r.empresa}</span></td>
+                <td class="num">${fmtPeso(r.avg)} <span style="font-size:0.68rem; color:${diffColor}">${diffLabel}</span></td>
+                <td class="num" style="color:#10b981">${fmtPeso(r.min)}</td>
+                <td class="num" style="color:#ef4444">${fmtPeso(r.max)}</td>
+                <td class="num">${r.n}</td>
+            </tr>`;
+        });
+
+        html += '</tbody></table>';
+        document.getElementById('table-container').innerHTML = html;
+    }
+
+    function sortTable(col) {
+        if (sortCol === col) sortAsc = !sortAsc;
+        else { sortCol = col; sortAsc = true; }
+        const search = document.getElementById('table-search').value.toLowerCase();
+        const filtered = search ? tableData.filter(r =>
+            r.prov.toLowerCase().includes(search) ||
+            r.empresa.toLowerCase().includes(search) ||
+            r.producto.toLowerCase().includes(search)
+        ) : tableData;
+        renderTable(filtered);
+    }
+
+    function filterTable() {
+        const search = document.getElementById('table-search').value.toLowerCase();
+        const filtered = search ? tableData.filter(r =>
+            r.prov.toLowerCase().includes(search) ||
+            r.empresa.toLowerCase().includes(search) ||
+            r.producto.toLowerCase().includes(search)
+        ) : tableData;
+        renderTable(filtered);
+    }
+
+    // ==================== DATE HELPERS ====================
+
+    function fmtFechaCorta(dateStr) {
+        if (!dateStr || dateStr.length < 7) return '';
+        const meses = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+        const parts = dateStr.substring(0, 10).split('-');
+        if (parts.length === 3 && parts[2]) return `${parseInt(parts[2])} ${meses[parseInt(parts[1])-1]}`;
+        if (parts.length >= 2) return `${meses[parseInt(parts[1])-1]} ${parts[0].slice(2)}`;
+        return dateStr.substring(0, 7);
+    }
+
+    function freshnessInfo(dateStr) {
+        if (!dateStr || dateStr.length < 7) return { label: '', color: 'var(--text-muted)', stale: false };
+        const today = new Date(); today.setHours(0,0,0,0);
+        const d = new Date(dateStr.substring(0, 10) + 'T00:00:00');
+        if (isNaN(d.getTime())) return { label: fmtFechaCorta(dateStr), color: 'var(--text-muted)', stale: false };
+        const diffDays = Math.round((today - d) / 86400000);
+        const label = fmtFechaCorta(dateStr);
+        if (diffDays <= 7)  return { label, color: '#10b981', stale: false };
+        if (diffDays <= 45) return { label, color: '#f59e0b', stale: false };
+        return { label, color: '#ef4444', stale: true };
+    }
+
+    // ==================== CIUDAD FILTER ====================
+
+    function updateStepIndicators(step) {
+        ['step-1','step-2','step-3'].forEach((id, i) => {
+            const el = document.getElementById(id);
+            if (el) el.classList.toggle('done', i < step);
+        });
+        const clearBtn = document.getElementById('clear-filters-btn');
+        if (clearBtn) clearBtn.style.display = step > 0 ? 'inline-flex' : 'none';
+    }
+
+    function populateCiudadFilter() {
+        const provSel = document.getElementById('filter-prov');
+        const provincias = [...new Set(allData.map(r => r.prov))].sort();
+        provSel.innerHTML = '<option value="">— Seleccioná una provincia —</option>' +
+            provincias.map(p => `<option value="${p}">${p.charAt(0) + p.slice(1).toLowerCase()}</option>`).join('');
+    }
+
+    function onProvChange() {
+        const prov = document.getElementById('filter-prov').value;
+        const ciudadSel = document.getElementById('filter-ciudad');
+        const fuelSel = document.getElementById('filter-fuel-ciudad');
+        document.getElementById('ciudad-results').innerHTML =
+            '<div class="info-box" style="padding:16px;">Elegí una ciudad para ver las estaciones disponibles.</div>';
+        clearStationMarkers();
+
+        if (!prov) {
+            ciudadSel.disabled = true;
+            ciudadSel.innerHTML = '<option value="">— Primero elegí provincia —</option>';
+            fuelSel.disabled = true;
+            fuelSel.innerHTML = '<option value="">— Seleccioná ciudad antes —</option>';
+            updateStepIndicators(0);
+            renderAll();
+            return;
+        }
+
+        const ciudades = [...new Set(
+            allData.filter(r => r.prov === prov).map(r => r.localidad).filter(Boolean)
+        )].sort();
+
+        ciudadSel.innerHTML = '<option value="">— Seleccioná una ciudad —</option>' +
+            ciudades.map(c => `<option value="${c}">${c.charAt(0) + c.slice(1).toLowerCase()}</option>`).join('');
+        ciudadSel.disabled = false;
+        fuelSel.disabled = true;
+        fuelSel.innerHTML = '<option value="">— Seleccioná ciudad antes —</option>';
+        updateStepIndicators(1);
+
+        // Zoom map to selected province as visual feedback
+        const provKey = normalizeProv(prov);
+        const provCenter = PROVINCE_COORDS[provKey];
+        if (provCenter && mapInstance) mapInstance.setView(provCenter, 7, { animate: true });
+        document.getElementById('ciudad-results').innerHTML =
+            `<div class="info-box" style="padding:16px;">📍 <strong>${ciudades.length}</strong> localidades en esta provincia. Elegí una ciudad para ver las estaciones.</div>`;
+    }
+
+    function onCiudadChange() {
+        const prov   = document.getElementById('filter-prov').value;
+        const ciudad = document.getElementById('filter-ciudad').value;
+        const fuelSel = document.getElementById('filter-fuel-ciudad');
+
+        if (!ciudad) {
+            fuelSel.disabled = true;
+            fuelSel.innerHTML = '<option value="">— Seleccioná ciudad antes —</option>';
+            updateStepIndicators(1);
+            clearStationMarkers();
+            document.getElementById('ciudad-results').innerHTML =
+                '<div class="info-box" style="padding:16px;">Elegí una ciudad para ver las estaciones disponibles.</div>';
+            return;
+        }
+
+        const fuelsEnCiudad = [...new Set(
+            allData.filter(r => r.prov === prov && r.localidad === ciudad).map(r => r.producto)
+        )].sort();
+
+        fuelSel.innerHTML = fuelsEnCiudad.map(f => `<option value="${f}">${f}</option>`).join('');
+        fuelSel.disabled = false;
+
+        if (fuelsEnCiudad.includes(activeFuel)) fuelSel.value = activeFuel;
+        updateStepIndicators(2);
+        renderCiudadResults(prov, ciudad, fuelSel.value);
+    }
+
+    function onFuelCiudadChange() {
+        const prov   = document.getElementById('filter-prov').value;
+        const ciudad = document.getElementById('filter-ciudad').value;
+        const fuel   = document.getElementById('filter-fuel-ciudad').value;
+        if (!prov || !ciudad || !fuel) return;
+
+        // Sync global active fuel and highlight the matching tab
+        activeFuel = fuel;
+        document.querySelectorAll('.fuel-tab').forEach(b => {
+            b.classList.toggle('active', b.dataset.fuel === fuel);
+        });
+        renderAll();
+        renderCiudadResults(prov, ciudad, fuel);
+    }
+
+    function clearCiudadFilters() {
+        document.getElementById('filter-prov').value = '';
+        const ciudadSel = document.getElementById('filter-ciudad');
+        ciudadSel.innerHTML = '<option value="">— Primero elegí provincia —</option>';
+        ciudadSel.disabled = true;
+        const fuelSel = document.getElementById('filter-fuel-ciudad');
+        fuelSel.innerHTML = '<option value="">— Seleccioná ciudad antes —</option>';
+        fuelSel.disabled = true;
+        document.getElementById('ciudad-results').innerHTML =
+            '<div class="info-box" style="padding:16px;">Seleccioná provincia y ciudad para ver las estaciones más baratas de tu zona.</div>';
+        updateStepIndicators(0);
+        clearStationMarkers();
+        renderAll();
+    }
+
+    function renderCiudadResults(prov, ciudad, fuel) {
+        const records = allData.filter(r =>
+            r.prov === prov && r.localidad === ciudad && r.producto === fuel
+        );
+
+        if (!records.length) {
+            document.getElementById('ciudad-results').innerHTML =
+                '<div class="info-box" style="padding:16px;">Sin datos para esta combinación.</div>';
+            clearStationMarkers();
+            return;
+        }
+
+        // Agrupar por estación física; si una estación tiene múltiples registros
+        // (distintas fechas de vigencia), quedarse con el precio más reciente.
+        const byStation = {};
+        records.forEach((r, i) => {
+            const key = (r.lat && r.lng)
+                ? `${r.empresa}||${r.lat.toFixed(5)}||${r.lng.toFixed(5)}`
+                : `${r.empresa}||${r.direccion || i}`;
+            const horario = r.tipohorario || 'Diurno';
+            if (!byStation[key]) byStation[key] = {
+                empresa: r.empresa, brand: r.empresa, direccion: r.direccion,
+                lat: r.lat, lng: r.lng, precios: {}, fechas: {}, fechaReciente: ''
+            };
+            if (!byStation[key].fechas[horario] || r.fechaFull >= byStation[key].fechas[horario]) {
+                byStation[key].precios[horario] = r.precio;
+                byStation[key].fechas[horario] = r.fechaFull;
+            }
+            if (r.fechaFull > byStation[key].fechaReciente) byStation[key].fechaReciente = r.fechaFull;
+        });
+
+        const stations = Object.values(byStation).map(s => ({
+            ...s,
+            precio: s.precios['Diurno'] || Object.values(s.precios)[0]
+        })).filter(s => s.precio > 0).sort((a, b) => {
+            const d = (b.fechaReciente || '').localeCompare(a.fechaReciente || '');
+            return d !== 0 ? d : a.precio - b.precio;
+        });
+
+        if (!stations.length) {
+            document.getElementById('ciudad-results').innerHTML =
+                '<div class="info-box" style="padding:16px;">Sin precios válidos para esta ciudad.</div>';
+            clearStationMarkers();
+            return;
+        }
+
+        updateStepIndicators(3);
+
+        const cheapestP = Math.min(...stations.map(s => s.precio));
+        const mostExpP  = Math.max(...stations.map(s => s.precio));
+        const savings   = mostExpP - cheapestP;
+
+        // Replace province circles with individual station markers
+        clearStationMarkers();
+        mapLayers.forEach(l => mapInstance.removeLayer(l));
+        mapLayers = [];
+        const existingLegend = document.querySelector('.map-legend');
+        if (existingLegend) existingLegend.remove();
+
+        const bounds = [];
+        stations.forEach((s, i) => {
+            if (!s.lat || !s.lng) return;
+            bounds.push([s.lat, s.lng]);
+            const col = priceColor(s.precio, cheapestP, mostExpP);
+            const isCheapestMarker = s.precio === cheapestP;
+            const freshM = freshnessInfo(s.fechaReciente);
+            const marker = L.circleMarker([s.lat, s.lng], {
+                radius: 10,
+                color: isCheapestMarker ? '#fff' : 'rgba(255,255,255,0.45)',
+                weight: isCheapestMarker ? 2 : 1,
+                fillColor: col,
+                fillOpacity: 0.92
+            }).bindPopup(`
+                <div style="font-family:'Inter',sans-serif; min-width:155px;">
+                    <strong style="font-size:0.9rem;">${s.brand}</strong><br>
+                    <span style="font-size:1.1rem; font-weight:800; color:${col}">$${fmtNum(s.precio,0)}<span style="font-size:0.7rem; color:#94a3b8; font-weight:400;">/L</span></span><br>
+                    <span style="color:#94a3b8; font-size:0.73rem; line-height:1.4;">${s.direccion || ''}</span><br>
+                    <span style="color:${freshM.color}; font-size:0.7rem;">📅 ${fmtFechaCorta(s.fechaReciente) || 'sin fecha'}</span>
+                </div>
+            `).addTo(mapInstance);
+            stationMarkers.push(marker);
+        });
+
+        if (bounds.length >= 2) {
+            mapInstance.fitBounds(bounds, { padding: [40, 40] });
+        } else if (bounds.length === 1) {
+            mapInstance.setView(bounds[0], 15);
+        }
+
+        // Summary bar
+        let html = `
+            <div class="ciudad-summary">
+                <span>🏪 <strong>${stations.length}</strong> estaciones</span>
+                <span>⛽ <strong>${fuel}</strong></span>
+                <span>📍 <strong>${ciudad.charAt(0) + ciudad.slice(1).toLowerCase()}</strong></span>
+                <span>💰 Ahorro máx: <strong style="color:#10b981">$${fmtNum(savings, 0)}/L</strong></span>
+                <span style="color:var(--text-muted); font-size:0.78rem;">🔄 ordenado por última actualización</span>
+            </div>
+            <div class="station-grid">`;
+
+        stations.forEach((s, i) => {
+            const isCheapest = s.precio === cheapestP;
+            const diff = s.precio - cheapestP;
+            const priceCol = isCheapest ? '#10b981' : diff <= savings * 0.25 ? '#84cc16' : diff <= savings * 0.6 ? '#f59e0b' : '#ef4444';
+            const fresh = freshnessInfo(s.fechaReciente);
+
+            let noctLabel = '';
+            if (s.precios['Nocturno'] && s.precios['Nocturno'] !== s.precio) {
+                noctLabel = `<div class="station-horario">🌙 Nocturno: $${fmtNum(s.precios['Nocturno'], 0)}</div>`;
+            }
+
+            const mapBtn = (s.lat && s.lng)
+                ? `<button onclick="zoomToStation(${s.lat},${s.lng},'${s.empresa.replace(/'/g,"\\'")} — $${fmtNum(s.precio,0)}/L')"
+                    style="background:rgba(59,130,246,0.15); color:#60a5fa; border:1px solid rgba(59,130,246,0.3);
+                    padding:5px 10px; border-radius:6px; font-size:0.72rem; cursor:pointer; font-weight:600;">🗺 Ver en mapa</button>`
+                : '';
+
+            const mapsUrl = (s.lat && s.lng)
+                ? `https://maps.google.com/?q=${s.lat},${s.lng}`
+                : `https://maps.google.com/?q=${encodeURIComponent((s.direccion || '') + ', ' + ciudad + ', Argentina')}`;
+            const mapsExtBtn = `<a href="${mapsUrl}" target="_blank" rel="noopener" class="maps-ext-btn">📍 Abrir en Maps</a>`;
+
+            html += `
+                <div class="station-card ${isCheapest ? 'cheapest' : ''}">
+                    <div class="freshness-pill" style="color:${fresh.color}">
+                        <span class="freshness-dot" style="background:${fresh.color}"></span>
+                        ${fresh.label || '—'}
+                    </div>
+                    <div class="station-brand">${s.brand}</div>
+                    <div class="station-price" style="color:${priceCol}">$${fmtNum(s.precio, 0)}</div>
+                    <div style="font-size:0.68rem; color:var(--text-muted); margin-bottom:2px;">por litro · Diurno</div>
+                    ${noctLabel}
+                    <div class="station-addr">📍 ${s.direccion || 'Dirección no disponible'}</div>
+                    ${isCheapest
+                        ? `<div class="savings-badge">✅ Precio más bajo</div>`
+                        : `<div class="station-horario" style="color:${priceCol}; margin-top:6px; font-weight:600;">+$${fmtNum(diff, 0)} vs más barata</div>`}
+                    ${fresh.stale ? `<div class="stale-warning">⚠️ Precio puede estar desactualizado</div>` : ''}
+                    <div class="station-btn-row">
+                        ${mapBtn}
+                        ${mapsExtBtn}
+                    </div>
+                </div>`;
+        });
+
+        html += '</div>';
+        document.getElementById('ciudad-results').innerHTML = html;
+    }
+
+    function zoomToStation(lat, lng, label) {
+        mapInstance.setView([lat, lng], 16);
+        L.popup()
+            .setLatLng([lat, lng])
+            .setContent(`<div style="font-family:'Inter',sans-serif; font-size:0.85rem; font-weight:600;">${label}</div>`)
+            .openOn(mapInstance);
+        document.getElementById('map').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    // ==================== START ====================
+    document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

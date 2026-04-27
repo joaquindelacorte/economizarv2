@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comercio Exterior</title>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7056671058245686"
+     crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="estilos_compartidos.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { padding: 32px; background-color: transparent; }
+        @media (max-width: 768px) {
+            body { padding: 16px; }
+            .section-title { font-size: 1.15rem; }
+        }
+
+        .comex-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 16px; margin-bottom: 16px; flex-wrap: wrap; gap: 12px; }
+
+        .filters-bar { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 24px; align-items: flex-end; padding: 16px; background: rgba(30,41,59,0.5); border-radius: 12px; border: 1px solid var(--border-color); }
+        .filter-group { display: flex; flex-direction: column; gap: 4px; }
+        .filter-group label { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+        .filter-group select {
+            background: rgba(15,23,42,0.8); color: white; border: 1px solid var(--border-color);
+            padding: 8px 12px; border-radius: 8px; font-family: 'Inter',sans-serif; font-size: 0.85rem; outline: none; min-width: 160px;
+        }
+
+        .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .kpi-card { background: rgba(30,41,59,0.7); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 16px; text-align: center; }
+        .kpi-label { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+        .kpi-value { font-family: 'Outfit',sans-serif; font-weight: 800; font-size: 1.6rem; color: #fff; margin-top: 4px; }
+
+        .chart-wrapper { position: relative; height: 320px; width: 100%; margin-bottom: 24px; }
+
+        .ranking-item { background: rgba(255,255,255,0.03); border-radius: 8px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; gap: 12px; transition: background 0.2s; margin-bottom: 8px; cursor: pointer; }
+        .ranking-item:hover { background: rgba(255,255,255,0.07); }
+        .r-rank { font-family:'Outfit',sans-serif; font-weight:800; font-size:1.1rem; color:var(--text-muted); min-width:28px; }
+        .r-info { display:flex; flex-direction:column; flex:1; min-width:0; }
+        .r-title { font-weight:600; font-size:0.85rem; color:var(--text-primary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .r-meta { font-size:0.7rem; color:var(--text-muted); margin-top:2px; }
+        .r-val { font-family:'Outfit',sans-serif; font-weight:700; font-size:1rem; text-align:right; white-space:nowrap; }
+        .r-bar { height: 4px; border-radius: 2px; margin-top: 6px; transition: width 0.5s ease; }
+
+        .section-title { font-family:'Outfit',sans-serif; font-size:1.15rem; margin:0 0 16px 0; color:var(--text-primary); }
+        .subsection-title { font-size:0.8rem; margin:20px 0 12px 0; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.05em; font-weight:700; }
+
+        .tab-bar { display: flex; gap: 4px; margin-bottom: 20px; }
+        .tab-btn { background: rgba(255,255,255,0.05); color: var(--text-muted); border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.85rem; transition: all 0.2s; }
+        .tab-btn.active { background: var(--accent); color: white; box-shadow: 0 4px 12px rgba(37,99,235,0.3); }
+        .tab-btn:hover:not(.active) { background: rgba(255,255,255,0.1); color: var(--text-primary); }
+
+        .error-box { background:rgba(239,68,68,0.1); color:#ef4444; padding:16px; border-radius:8px; font-size:0.85rem; text-align:center; }
+    </style>
+</head>
+<body>
+
+    <div class="comex-header stagger-1 fade-in">
+        <div>
+            <h1 class="page-title" style="margin:0;">INDEC | Comercio Exterior</h1>
+            <p class="page-subtitle">Análisis interactivo de intercambio comercial argentino</p>
+        </div>
+    </div>
+
+    <!-- FILTERS -->
+    <div class="filters-bar stagger-2 fade-in">
+        <div class="filter-group">
+            <label>Año</label>
+            <select id="f-year" onchange="loadData()">
+                <option value="2026">2026</option>
+                <option value="2025">2025</option>
+                <option value="2024">2024</option>
+                <option value="2023">2023</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>Flujo</label>
+            <select id="f-flow" onchange="loadData()">
+                <option value="both">Expo + Impo</option>
+                <option value="export">Solo Exportaciones</option>
+                <option value="import">Solo Importaciones</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>Vista de gráfico</label>
+            <select id="f-chartType" onchange="renderCharts()">
+                <option value="countries">Por País</option>
+                <option value="chapters">Por Capítulo NCM</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>Top N</label>
+            <select id="f-topN" onchange="renderCharts()">
+                <option value="5">Top 5</option>
+                <option value="10" selected>Top 10</option>
+                <option value="15">Top 15</option>
+                <option value="20">Top 20</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- KPIs -->
+    <div class="kpi-row stagger-2 fade-in" id="kpi-row">
+        <div class="kpi-card"><div class="kpi-label">Cargando...</div><div class="kpi-value">---</div></div>
+    </div>
+
+    <!-- CHARTS -->
+    <div class="glass-card stagger-3 fade-in" style="margin-bottom: 24px;">
+        <div class="tab-bar" id="chart-tabs"></div>
+        <div class="chart-wrapper"><canvas id="mainChart"></canvas></div>
+    </div>
+
+    <!-- DETAILED LIST -->
+    <div class="grid-2 stagger-4 fade-in" id="detail-panels">
+        <div class="loader-container"><div class="spinner"></div></div>
+    </div>
+
+    <!-- ================ HISTÓRICO COMEX ================ -->
+    <div style="margin-top: 40px;" class="fade-in stagger-4">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
+            <div>
+                <h2 class="page-title" style="margin:0; font-size:1.5rem;">📊 Histórico de Comercio Exterior</h2>
+                <p class="page-subtitle" style="font-size:0.85rem;">Exportaciones, importaciones y balanza comercial mensual · Fuente: INDEC COMEX</p>
+            </div>
+        </div>
+
+        <!-- Historic Filters -->
+        <div class="filters-bar" style="margin-bottom:20px;">
+            <div class="filter-group">
+                <label>Desde Año</label>
+                <select id="h-fromYear" onchange="loadHistorico()"></select>
+            </div>
+            <div class="filter-group">
+                <label>Hasta Año</label>
+                <select id="h-toYear" onchange="loadHistorico()"></select>
+            </div>
+            <div class="filter-group">
+                <label>Series</label>
+                <select id="h-series" onchange="renderHistoricoChart()">
+                    <option value="all">Expo + Impo + Balanza</option>
+                    <option value="expo_impo">Solo Expo + Impo</option>
+                    <option value="balance">Solo Balanza Comercial</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Escala</label>
+                <select id="h-scale" onchange="renderHistoricoChart()">
+                    <option value="monthly">Mensual</option>
+                    <option value="annual">Anual</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Historic KPIs -->
+        <div class="kpi-row" id="h-kpi-row" style="margin-bottom:24px;">
+            <div class="kpi-card"><div class="kpi-label">Cargando histórico...</div><div class="kpi-value">---</div></div>
+        </div>
+
+        <!-- Historic Chart -->
+        <div class="glass-card" style="margin-bottom:24px;">
+            <div style="position:relative; height:420px; width:100%;">
+                <canvas id="historicoChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Annual table -->
+        <div class="glass-card" id="h-annual-table-container" style="overflow-x: auto;">
+            <h2 class="section-title">📋 Resumen Anual</h2>
+            <table class="premium-table" id="h-annual-table">
+                <thead><tr><th>Año</th><th>Exportaciones</th><th>Importaciones</th><th>Balanza</th></tr></thead>
+                <tbody><tr><td colspan="4" style="text-align:center; color:var(--text-muted);">Cargando...</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let cachedExpo = null, cachedImpo = null;
+        let mainChartInst = null;
+        let historicoChartInst = null;
+        let historicoData = null;
+
+        // ======= HELPERS =======
+        function parseDesc(raw) {
+            if (!raw) return 'Sin descripción';
+            if (typeof raw === 'object') return raw.es || raw.en || JSON.stringify(raw);
+            const str = String(raw);
+            const m = str.match(/@\{es=([^;]+)/);
+            if (m && m[1]) return m[1].trim();
+            const m2 = str.match(/@\{es=(.+?)\}/);
+            if (m2 && m2[1]) return m2[1].trim();
+            return str;
+        }
+
+        function fmtUSD(v) {
+            if (Math.abs(v) >= 1e9) return 'U$S ' + (v/1e9).toFixed(2) + 'B';
+            if (Math.abs(v) >= 1e6) return 'U$S ' + (v/1e6).toFixed(1) + 'M';
+            return 'U$S ' + Number(v).toLocaleString('es-AR', {maximumFractionDigits:0});
+        }
+
+        function fmtUSDShort(v) {
+            if (Math.abs(v) >= 1e3) return (v/1e3).toFixed(1) + 'B';
+            return v.toFixed(0) + 'M';
+        }
+
+        function getFlagEmoji(iso2) {
+            if (!iso2 || iso2.length !== 2) return '🌐';
+            return String.fromCodePoint(...[...iso2.toUpperCase()].map(c => 0x1F1E6 + c.charCodeAt(0) - 65));
+        }
+
+        // ======= FETCH =======
+        async function fetchIndec(type, year) {
+            const res = await fetch(`https://comexbe.indec.gob.ar/public-api/rankings/${type}/${year}`);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return await res.json();
+        }
+
+        async function loadData() {
+            const year = document.getElementById('f-year').value;
+            const flow = document.getElementById('f-flow').value;
+
+            document.getElementById('kpi-row').innerHTML = '<div class="kpi-card"><div class="kpi-label">Consultando INDEC...</div><div class="kpi-value"><div class="spinner" style="width:24px;height:24px;margin:8px auto;"></div></div></div>';
+            document.getElementById('detail-panels').innerHTML = '<div class="loader-container"><div class="spinner"></div></div>';
+
+            try {
+                if (flow === 'both' || flow === 'export') {
+                    cachedExpo = await fetchIndec('export', year);
+                } else { cachedExpo = null; }
+
+                if (flow === 'both' || flow === 'import') {
+                    cachedImpo = await fetchIndec('import', year);
+                } else { cachedImpo = null; }
+
+                renderCharts();
+            } catch (e) {
+                console.error(e);
+                document.getElementById('kpi-row').innerHTML = `<div class="error-box">⚠️ Error: ${e.message}</div>`;
+                document.getElementById('detail-panels').innerHTML = '';
+            }
+        }
+
+        // ======= RENDER =======
+        function renderCharts() {
+            const chartType = document.getElementById('f-chartType').value;
+            const topN = parseInt(document.getElementById('f-topN').value);
+
+            renderKPIs();
+            renderMainChart(chartType, topN);
+            renderDetailPanels(topN);
+        }
+
+        function renderKPIs() {
+            const kpiRow = document.getElementById('kpi-row');
+            let html = '';
+
+            if (cachedExpo) {
+                const totalExpo = (cachedExpo.countries || []).reduce((s, c) => s + (c.value || 0), 0);
+                const topExpoCountry = (cachedExpo.countries || []).sort((a,b) => b.value - a.value)[0];
+                html += `<div class="kpi-card"><div class="kpi-label">Total Exportado</div><div class="kpi-value" style="color:#10b981">${fmtUSD(totalExpo)}</div></div>`;
+                html += `<div class="kpi-card"><div class="kpi-label">N° Países Expo</div><div class="kpi-value">${(cachedExpo.countries||[]).length}</div></div>`;
+                if (topExpoCountry) html += `<div class="kpi-card"><div class="kpi-label">Principal Destino</div><div class="kpi-value" style="font-size:1.2rem;">${getFlagEmoji(topExpoCountry.iso2)} ${topExpoCountry.description}</div></div>`;
+            }
+            if (cachedImpo) {
+                const totalImpo = (cachedImpo.countries || []).reduce((s, c) => s + (c.value || 0), 0);
+                const topImpoCountry = (cachedImpo.countries || []).sort((a,b) => b.value - a.value)[0];
+                html += `<div class="kpi-card"><div class="kpi-label">Total Importado</div><div class="kpi-value" style="color:#f43f5e">${fmtUSD(totalImpo)}</div></div>`;
+                html += `<div class="kpi-card"><div class="kpi-label">N° Países Impo</div><div class="kpi-value">${(cachedImpo.countries||[]).length}</div></div>`;
+                if (topImpoCountry) html += `<div class="kpi-card"><div class="kpi-label">Principal Origen</div><div class="kpi-value" style="font-size:1.2rem;">${getFlagEmoji(topImpoCountry.iso2)} ${topImpoCountry.description}</div></div>`;
+            }
+            if (cachedExpo && cachedImpo) {
+                const tE = (cachedExpo.countries||[]).reduce((s,c)=>s+(c.value||0),0);
+                const tI = (cachedImpo.countries||[]).reduce((s,c)=>s+(c.value||0),0);
+                const balance = tE - tI;
+                html += `<div class="kpi-card"><div class="kpi-label">Balanza Comercial</div><div class="kpi-value" style="color:${balance >= 0 ? '#10b981' : '#ef4444'}; font-size:1.4rem;">${balance >= 0 ? '+' : ''}${fmtUSD(balance)}</div></div>`;
+            }
+            kpiRow.innerHTML = html;
+        }
+
+        function renderMainChart(chartType, topN) {
+            const ctx = document.getElementById('mainChart').getContext('2d');
+            if (mainChartInst) mainChartInst.destroy();
+
+            const datasets = [];
+            let labels = [];
+
+            function getTopItems(data, key) {
+                if (!data || !data[key]) return [];
+                return [...data[key]].sort((a, b) => b.value - a.value).slice(0, topN);
+            }
+
+            if (cachedExpo) {
+                const items = getTopItems(cachedExpo, chartType);
+                labels = items.map(c => chartType === 'countries' ? (c.description || c.iso2) : parseDesc(c.description || c.name) );
+                datasets.push({ label: 'Exportaciones', data: items.map(c => c.value), backgroundColor: 'rgba(16,185,129,0.7)', borderRadius: 6, borderSkipped: false });
+            }
+
+            if (cachedImpo) {
+                const items = getTopItems(cachedImpo, chartType);
+                if (labels.length === 0) labels = items.map(c => chartType === 'countries' ? (c.description || c.iso2) : parseDesc(c.description || c.name));
+                // Match labels for comparison
+                const impoMap = {};
+                items.forEach(c => {
+                    const lbl = chartType === 'countries' ? (c.description || c.iso2) : parseDesc(c.description || c.name);
+                    impoMap[lbl] = c.value;
+                });
+                // If both flows, align on labels from expo
+                if (cachedExpo) {
+                    datasets.push({ label: 'Importaciones', data: labels.map(l => impoMap[l] || 0), backgroundColor: 'rgba(244,63,94,0.7)', borderRadius: 6, borderSkipped: false });
+                } else {
+                    datasets.push({ label: 'Importaciones', data: items.map(c => c.value), backgroundColor: 'rgba(244,63,94,0.7)', borderRadius: 6, borderSkipped: false });
+                }
+            }
+
+            // Truncate labels for display
+            const displayLabels = labels.map(l => l.length > 30 ? l.substring(0, 28) + '…' : l);
+
+            mainChartInst = new Chart(ctx, {
+                type: 'bar',
+                data: { labels: displayLabels, datasets },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top', labels: { color: '#e2e8f0', usePointStyle: true, padding: 16 } },
+                        tooltip: { callbacks: { label: item => `${item.dataset.label}: ${fmtUSD(item.raw)}` } }
+                    },
+                    scales: {
+                        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', callback: v => '$' + (v/1e9).toFixed(1) + 'B' } },
+                        y: { grid: { display: false }, ticks: { color: '#e2e8f0', font: { size: 11 } } }
+                    }
+                }
+            });
+        }
+
+        function renderDetailPanels(topN) {
+            const panels = document.getElementById('detail-panels');
+            let html = '';
+
+            if (cachedExpo) {
+                html += renderProductList(cachedExpo, 'export', topN);
+            }
+            if (cachedImpo) {
+                html += renderProductList(cachedImpo, 'import', topN);
+            }
+            panels.innerHTML = html;
+        }
+
+        function renderProductList(data, type, topN) {
+            const isExpo = type === 'export';
+            const color = isExpo ? '#10b981' : '#f43f5e';
+            const icon = isExpo ? '⬆️' : '⬇️';
+            const products = [...(data.products || [])].sort((a, b) => b.value - a.value).slice(0, topN);
+            const maxVal = products[0]?.value || 1;
+
+            let html = `<div class="glass-card"><h2 class="section-title">${icon} ${isExpo ? 'Productos Exportados' : 'Productos Importados'}</h2>`;
+            products.forEach((p, i) => {
+                const name = parseDesc(p.description);
+                const barWidth = (p.value / maxVal * 100).toFixed(0);
+                html += `
+                    <div class="ranking-item">
+                        <div class="r-rank">${i + 1}</div>
+                        <div class="r-info">
+                            <div class="r-title" title="${name}">${name}</div>
+                            <div class="r-meta">NCM: ${p.id || '—'} · Peso: ${p.weight ? fmtUSD(p.weight).replace('U$S','') + ' kg' : '—'}</div>
+                            <div class="r-bar" style="width:${barWidth}%; background:${color};"></div>
+                        </div>
+                        <div class="r-val" style="color:${color}">${fmtUSD(p.value)}</div>
+                    </div>`;
+            });
+            html += '</div>';
+            return html;
+        }
+
+        // ======= HISTÓRICO COMEX =======
+        function initHistoricoSelectors() {
+            const fromSel = document.getElementById('h-fromYear');
+            const toSel = document.getElementById('h-toYear');
+            for (let y = 2002; y <= 2026; y++) {
+                fromSel.innerHTML += `<option value="${y}" ${y === 2002 ? 'selected' : ''}>${y}</option>`;
+                toSel.innerHTML += `<option value="${y}" ${y === 2026 ? 'selected' : ''}>${y}</option>`;
+            }
+        }
+
+        async function loadHistorico() {
+            const fromYear = document.getElementById('h-fromYear').value;
+            const toYear = document.getElementById('h-toYear').value;
+
+            document.getElementById('h-kpi-row').innerHTML = '<div class="kpi-card"><div class="kpi-label">Consultando histórico...</div><div class="kpi-value"><div class="spinner" style="width:24px;height:24px;margin:8px auto;"></div></div></div>';
+
+            try {
+                const url = `https://comexbe.indec.gob.ar/public-api/graph/original/fromMonth/1/toMonth/12/fromYear/${fromYear}/toYear/${toYear}`;
+                const res = await fetch(url);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                historicoData = await res.json();
+                renderHistoricoChart();
+            } catch (e) {
+                console.error('Error cargando histórico:', e);
+                document.getElementById('h-kpi-row').innerHTML = `<div class="error-box">⚠️ Error histórico: ${e.message}</div>`;
+            }
+        }
+
+        function renderHistoricoChart() {
+            if (!historicoData) return;
+
+            const series = document.getElementById('h-series').value;
+            const scale = document.getElementById('h-scale').value;
+
+            const labels = historicoData.labels || [];
+            const expoRaw = historicoData.exports || [];
+            const impoRaw = historicoData.imports || [];
+            const balanceRaw = historicoData.commercialBalance || [];
+
+            let chartLabels, expoData, impoData, balanceData;
+
+            if (scale === 'annual') {
+                // Aggregate by year
+                const yearMap = {};
+                labels.forEach((lbl, i) => {
+                    const year = lbl.split('/')[1];
+                    if (!yearMap[year]) yearMap[year] = { expo: 0, impo: 0, balance: 0 };
+                    yearMap[year].expo += (expoRaw[i] || 0);
+                    yearMap[year].impo += (impoRaw[i] || 0);
+                    yearMap[year].balance += (balanceRaw[i] || 0);
+                });
+                const years = Object.keys(yearMap).sort();
+                chartLabels = years;
+                expoData = years.map(y => yearMap[y].expo);
+                impoData = years.map(y => yearMap[y].impo);
+                balanceData = years.map(y => yearMap[y].balance);
+            } else {
+                chartLabels = labels;
+                expoData = expoRaw;
+                impoData = impoRaw;
+                balanceData = balanceRaw;
+            }
+
+            // ---- Render KPIs ----
+            const totalExpo = expoData.reduce((s, v) => s + v, 0);
+            const totalImpo = impoData.reduce((s, v) => s + v, 0);
+            const totalBalance = totalExpo - totalImpo;
+            const avgBalance = balanceData.length > 0 ? balanceData.reduce((s, v) => s + v, 0) / balanceData.length : 0;
+            const maxExpoMonth = Math.max(...expoRaw);
+            const maxImpoMonth = Math.max(...impoRaw);
+            const maxExpoIdx = expoRaw.indexOf(maxExpoMonth);
+            const maxImpoIdx = impoRaw.indexOf(maxImpoMonth);
+
+            let kpiHtml = '';
+            kpiHtml += `<div class="kpi-card"><div class="kpi-label">Exportaciones Acumuladas</div><div class="kpi-value" style="color:#10b981">U$S ${(totalExpo/1e3).toFixed(1)}B</div></div>`;
+            kpiHtml += `<div class="kpi-card"><div class="kpi-label">Importaciones Acumuladas</div><div class="kpi-value" style="color:#f43f5e">U$S ${(totalImpo/1e3).toFixed(1)}B</div></div>`;
+            kpiHtml += `<div class="kpi-card"><div class="kpi-label">Balanza Acumulada</div><div class="kpi-value" style="color:${totalBalance >= 0 ? '#10b981' : '#ef4444'}">${totalBalance >= 0 ? '+' : ''}U$S ${(totalBalance/1e3).toFixed(1)}B</div></div>`;
+            kpiHtml += `<div class="kpi-card"><div class="kpi-label">Récord Expo Mensual</div><div class="kpi-value" style="color:#10b981; font-size:1.2rem;">U$S ${maxExpoMonth.toLocaleString('es-AR')}M<br><span style="font-size:0.7rem;color:var(--text-muted)">${labels[maxExpoIdx] || ''}</span></div></div>`;
+            kpiHtml += `<div class="kpi-card"><div class="kpi-label">Récord Impo Mensual</div><div class="kpi-value" style="color:#f43f5e; font-size:1.2rem;">U$S ${maxImpoMonth.toLocaleString('es-AR')}M<br><span style="font-size:0.7rem;color:var(--text-muted)">${labels[maxImpoIdx] || ''}</span></div></div>`;
+            document.getElementById('h-kpi-row').innerHTML = kpiHtml;
+
+            // ---- Render Chart ----
+            const ctx = document.getElementById('historicoChart').getContext('2d');
+            if (historicoChartInst) historicoChartInst.destroy();
+
+            const datasets = [];
+
+            if (series === 'all' || series === 'expo_impo') {
+                // Gradient for exports
+                const expoGrad = ctx.createLinearGradient(0, 0, 0, 420);
+                expoGrad.addColorStop(0, 'rgba(16,185,129,0.35)');
+                expoGrad.addColorStop(1, 'rgba(16,185,129,0.02)');
+
+                datasets.push({
+                    label: 'Exportaciones (M USD)',
+                    data: expoData,
+                    borderColor: '#10b981',
+                    backgroundColor: expoGrad,
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: scale === 'annual' ? 4 : 0,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: '#10b981',
+                    order: 2
+                });
+
+                // Gradient for imports
+                const impoGrad = ctx.createLinearGradient(0, 0, 0, 420);
+                impoGrad.addColorStop(0, 'rgba(244,63,94,0.30)');
+                impoGrad.addColorStop(1, 'rgba(244,63,94,0.02)');
+
+                datasets.push({
+                    label: 'Importaciones (M USD)',
+                    data: impoData,
+                    borderColor: '#f43f5e',
+                    backgroundColor: impoGrad,
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: scale === 'annual' ? 4 : 0,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: '#f43f5e',
+                    order: 3
+                });
+            }
+
+            if (series === 'all' || series === 'balance') {
+                const balColors = balanceData.map(v => v >= 0 ? 'rgba(16,185,129,0.6)' : 'rgba(239,68,68,0.6)');
+                const balBorderColors = balanceData.map(v => v >= 0 ? '#10b981' : '#ef4444');
+
+                if (series === 'balance') {
+                    datasets.push({
+                        label: 'Balanza Comercial (M USD)',
+                        data: balanceData,
+                        type: 'bar',
+                        backgroundColor: balColors,
+                        borderColor: balBorderColors,
+                        borderWidth: 1,
+                        borderRadius: 3,
+                        order: 1
+                    });
+                } else {
+                    datasets.push({
+                        label: 'Balanza Comercial (M USD)',
+                        data: balanceData,
+                        type: 'bar',
+                        backgroundColor: balColors,
+                        borderColor: 'transparent',
+                        borderWidth: 0,
+                        borderRadius: 2,
+                        barPercentage: 0.6,
+                        categoryPercentage: 0.9,
+                        order: 4
+                    });
+                }
+            }
+
+            // Simplify labels for monthly: show only Jan of each year
+            let displayLabels = chartLabels;
+            if (scale === 'monthly' && chartLabels.length > 50) {
+                displayLabels = chartLabels.map(l => {
+                    const parts = l.split('/');
+                    return parts[0] === '1' ? parts[1] : '';
+                });
+            }
+
+            historicoChartInst = new Chart(ctx, {
+                type: 'line',
+                data: { labels: displayLabels, datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                color: '#e2e8f0',
+                                usePointStyle: true,
+                                padding: 16,
+                                font: { size: 12, family: 'Inter' }
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(15,23,42,0.95)',
+                            borderColor: 'rgba(255,255,255,0.1)',
+                            borderWidth: 1,
+                            titleFont: { family: 'Inter', weight: '600' },
+                            bodyFont: { family: 'Inter' },
+                            padding: 14,
+                            cornerRadius: 10,
+                            callbacks: {
+                                title: items => {
+                                    const idx = items[0].dataIndex;
+                                    return chartLabels[idx] || '';
+                                },
+                                label: item => {
+                                    const val = item.raw;
+                                    const sign = val >= 0 ? '' : '';
+                                    return ` ${item.dataset.label}: ${sign}U$S ${Number(val).toLocaleString('es-AR')} M`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(255,255,255,0.04)' },
+                            ticks: {
+                                color: '#64748b',
+                                font: { size: 10 },
+                                maxRotation: 0,
+                                autoSkip: true,
+                                maxTicksLimit: scale === 'annual' ? 30 : 25
+                            }
+                        },
+                        y: {
+                            grid: { color: 'rgba(255,255,255,0.06)' },
+                            ticks: {
+                                color: '#64748b',
+                                font: { size: 11 },
+                                callback: v => 'U$S ' + fmtUSDShort(v)
+                            }
+                        }
+                    }
+                }
+            });
+
+            // ---- Render Annual Table ----
+            renderAnnualTable();
+        }
+
+        function renderAnnualTable() {
+            if (!historicoData) return;
+            const labels = historicoData.labels || [];
+            const expoRaw = historicoData.exports || [];
+            const impoRaw = historicoData.imports || [];
+
+            // Aggregate by year
+            const yearMap = {};
+            labels.forEach((lbl, i) => {
+                const year = lbl.split('/')[1];
+                if (!yearMap[year]) yearMap[year] = { expo: 0, impo: 0 };
+                yearMap[year].expo += (expoRaw[i] || 0);
+                yearMap[year].impo += (impoRaw[i] || 0);
+            });
+
+            const years = Object.keys(yearMap).sort();
+            let tbodyHtml = '';
+
+            years.forEach((year, idx) => {
+                const expo = yearMap[year].expo;
+                const impo = yearMap[year].impo;
+                const balance = expo - impo;
+                const balColor = balance >= 0 ? '#10b981' : '#ef4444';
+                const balSign = balance >= 0 ? '+' : '';
+
+                // YoY change
+                let expoChange = '', impoChange = '';
+                if (idx > 0) {
+                    const prevYear = years[idx - 1];
+                    const prevExpo = yearMap[prevYear].expo;
+                    const prevImpo = yearMap[prevYear].impo;
+                    if (prevExpo > 0) {
+                        const pct = ((expo - prevExpo) / prevExpo * 100).toFixed(1);
+                        expoChange = `<span class="badge ${Number(pct) >= 0 ? 'badge-up' : 'badge-down'}" style="margin-left:8px;font-size:0.65rem;">${Number(pct) >= 0 ? '▲' : '▼'} ${Math.abs(pct)}%</span>`;
+                    }
+                    if (prevImpo > 0) {
+                        const pct = ((impo - prevImpo) / prevImpo * 100).toFixed(1);
+                        impoChange = `<span class="badge ${Number(pct) >= 0 ? 'badge-up' : 'badge-down'}" style="margin-left:8px;font-size:0.65rem;">${Number(pct) >= 0 ? '▲' : '▼'} ${Math.abs(pct)}%</span>`;
+                    }
+                }
+
+                tbodyHtml += `<tr>
+                    <td style="font-weight:700; font-family:'Outfit',sans-serif;">${year}</td>
+                    <td style="color:#10b981; font-weight:600;">U$S ${(expo/1e3).toFixed(2)}B${expoChange}</td>
+                    <td style="color:#f43f5e; font-weight:600;">U$S ${(impo/1e3).toFixed(2)}B${impoChange}</td>
+                    <td style="color:${balColor}; font-weight:700;">${balSign}U$S ${(balance/1e3).toFixed(2)}B</td>
+                </tr>`;
+            });
+
+            document.getElementById('h-annual-table').querySelector('tbody').innerHTML = tbodyHtml;
+        }
+
+        // ======= INIT =======
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('f-year').value = '2026';
+            loadData();
+
+            // Init histórico
+            initHistoricoSelectors();
+            loadHistorico();
+        });
+    </script>
+</body>
+</html>
