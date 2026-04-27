@@ -1032,7 +1032,7 @@ function calcCu(){
     for(let i=1;i<=n;i++){const int=saldo*tm,cu=capC+int;saldo-=capC;totP+=cu;totI+=int;rows.push({i,cuota:cu,cap:capC,int,saldo:Math.max(0,saldo)});}
     cuota=rows[0].cuota;
   }
-  const costo=totP-M,cft=(Math.pow(totP/M,12/n)-1)*100;
+  const costo=totP-M,cft=(Math.pow(1+tm,12)-1)*100;
   $('cu-cuota').textContent=cuSist==='aleman'?fmtARS(rows[rows.length-1].cuota)+' – '+fmtARS(rows[0].cuota):fmtARS(cuota);
   $('cu-total').textContent=fmtARS(totP+eng);$('cu-costo').textContent='-'+fmtARS(costo);$('cu-cft').textContent=cft.toFixed(2)+'%';$('cu-int').textContent='-'+fmtARS(totI);
   const step=Math.max(1,Math.floor(rows.length/50));
@@ -1085,7 +1085,7 @@ function calcR72(){
   $('r72-tea').textContent=tea.toFixed(2)+'%';
   const tX=x=>Math.log(x)/Math.log(1+tea/100);
   $('r72-x2').textContent=fmtTime(tX(2));$('r72-x3').textContent=fmtTime(tX(3));$('r72-x5').textContent=fmtTime(tX(5));$('r72-x10').textContent=fmtTime(tX(10));
-  const proyY=Math.min(Math.max(tX(2)*2.5,3),10),proyM=Math.ceil(proyY*12),temM=tea/100/12;
+  const proyY=Math.min(Math.max(tX(2)*2.5,3),10),proyM=Math.ceil(proyY*12),temM=Math.pow(1+tea/100,1/12)-1;
   const labels=Array.from({length:proyM+1},(_,i)=>i%12===0?`Año ${i/12}`:'');
   const data=Array.from({length:proyM+1},(_,i)=>C0*Math.pow(1+temM,i));
   dc('r72');charts['r72']=new Chart($('r72-chart').getContext('2d'),{type:'line',data:{labels,datasets:[{label:'Capital',data,borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,0.07)',fill:true,tension:0.3,pointRadius:0,borderWidth:2}]},options:{...CO,plugins:{legend:{display:false}}}});

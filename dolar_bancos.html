@@ -404,6 +404,7 @@ async function loadData() {
 // ── PARSE ─────────────────────────────────────────────────────────────────
 function parseBanks(raw) {
     return Object.entries(raw)
+        .filter(([key]) => !key.toLowerCase().includes('columbia'))
         .map(([key, b]) => {
             const buy  = b.totalask ?? b.ask ?? null;
             const sell = b.totalbid ?? b.bid ?? null;
