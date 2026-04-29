@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-GSQ99MXP6F"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-GSQ99MXP6F');
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bonos Soberanos | Comparativa</title>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7056671058245686"
+     crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="estilos_compartidos.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+
+    <style>
+        body { padding: 32px; background-color: transparent; }
+
+        @media (max-width: 768px) {
+            body { padding: 16px; }
+            .bonds-table th:nth-child(5),
+            .bonds-table td:nth-child(5) { display: none; }
+        }
+
+        /* ── KPI Cards ─────────────────────────────────────────── */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 28px;
+        }
+
+        .kpi-card {
+            background: rgba(30, 41, 59, 0.75);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.07);
+            border-radius: 16px;
+            padding: 20px 22px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+        }
+
+        .kpi-label {
+            font-size: 0.66rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            font-weight: 700;
+        }
+
+        .kpi-name {
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .kpi-value {
+            font-family: 'Outfit', sans-serif;
+            font-size: 2.1rem;
+            font-weight: 800;
+            line-height: 1;
+            margin-top: 6px;
+        }
+
+        .kpi-change {
+            font-size: 0.78rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-top: 2px;
+        }
+
+        .kpi-sub {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-top: 3px;
+        }
+
+        .up      { color: var(--success); }
+        .down    { color: var(--danger); }
+        .flat    { color: var(--text-muted); }
+
+        .kpi-tnx    { border-left: 3px solid #3b82f6; }
+        .kpi-gd30   { border-left: 3px solid #10b981; }
+        .kpi-al30   { border-left: 3px solid #f59e0b; }
+        .kpi-spread { border-left: 3px solid #a855f7; }
+
+        /* ── Chart ──────────────────────────────────────────────── */
+        .chart-wrap {
+            position: relative;
+            height: 360px;
+            width: 100%;
+        }
+
+        .chart-meta {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-align: right;
+            margin-top: 10px;
+        }
+
+        /* ── Table ──────────────────────────────────────────────── */
+        .bonds-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .bonds-table thead th {
+            text-align: left;
+            padding: 10px 14px;
+            font-size: 0.67rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+            font-weight: 700;
+            border-bottom: 1px solid var(--border-color);
+            white-space: nowrap;
+        }
+
+        .bonds-table tbody tr {
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+            transition: background 0.15s;
+        }
+
+        .bonds-table tbody tr:hover { background: rgba(255,255,255,0.03); }
+
+        .bonds-table tbody td {
+            padding: 14px;
+            vertical-align: middle;
+        }
+
+        .bond-ticker {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .bond-desc {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-top: 3px;
+        }
+
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        /* ── Skeleton ───────────────────────────────────────────── */
+        .skel {
+            background: linear-gradient(
+                90deg,
+                rgba(255,255,255,0.05) 25%,
+                rgba(255,255,255,0.10) 50%,
+                rgba(255,255,255,0.05) 75%
+            );
+            background-size: 200% 100%;
+            animation: shimmer 1.6s infinite;
+            border-radius: 6px;
+        }
+
+        @keyframes shimmer {
+            0%   { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* ── Error ──────────────────────────────────────────────── */
+        .err-inline {
+            background: rgba(239,68,68,0.1);
+            border: 1px solid rgba(239,68,68,0.25);
+            color: #fca5a5;
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 0.75rem;
+            margin-top: 8px;
+        }
+
+        /* ── Spread row highlight ───────────────────────────────── */
+        .spread-row { background: rgba(168, 85, 247, 0.05); }
+
+        /* ── Info note ──────────────────────────────────────────── */
+        .info-note {
+            background: rgba(59,130,246,0.07);
+            border: 1px solid rgba(59,130,246,0.18);
+            border-radius: 10px;
+            padding: 12px 16px;
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+            margin-top: 16px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Page Header -->
+    <div class="page-header stagger-1 fade-in">
+        <h1 class="page-title">🏦 Bonos Soberanos · Comparativa</h1>
+        <p class="page-subtitle">
+            Rendimientos en tiempo real: Tesoro EE.UU. 10 años (^TNX) frente a deuda soberana argentina (GD30 · AL30).
+        </p>
+    </div>
+
+    <!-- KPI Cards -->
+    <div class="kpi-grid stagger-1 fade-in" id="kpi-grid">
+        <div class="kpi-card kpi-tnx">
+            <div class="kpi-label">EE.UU. · ^TNX</div>
+            <div class="kpi-name">Tesoro 10 años · Yield</div>
+            <div class="kpi-value skel" style="height:40px;width:75%;margin-top:6px;"></div>
+            <div class="skel" style="height:14px;width:55%;margin-top:10px;"></div>
+        </div>
+        <div class="kpi-card kpi-gd30">
+            <div class="kpi-label">ARGENTINA · GD30</div>
+            <div class="kpi-name">Bono Ley Extranjera · ARS</div>
+            <div class="kpi-value skel" style="height:40px;width:75%;margin-top:6px;"></div>
+            <div class="skel" style="height:14px;width:55%;margin-top:10px;"></div>
+        </div>
+        <div class="kpi-card kpi-al30">
+            <div class="kpi-label">ARGENTINA · AL30</div>
+            <div class="kpi-name">Bono Ley Local · ARS</div>
+            <div class="kpi-value skel" style="height:40px;width:75%;margin-top:6px;"></div>
+            <div class="skel" style="height:14px;width:55%;margin-top:10px;"></div>
+        </div>
+        <div class="kpi-card kpi-spread">
+            <div class="kpi-label">SPREAD · EMBI</div>
+            <div class="kpi-name">Riesgo País Argentina</div>
+            <div class="kpi-value skel" style="height:40px;width:75%;margin-top:6px;"></div>
+            <div class="skel" style="height:14px;width:55%;margin-top:10px;"></div>
+        </div>
+    </div>
+
+    <!-- Comparative Chart -->
+    <div class="glass-card stagger-2 fade-in" style="margin-bottom:24px;">
+        <h2 class="section-title">📈 Evolución · Últimos 6 meses</h2>
+        <div id="chart-error" style="display:none;" class="err-inline"></div>
+        <div class="chart-wrap">
+            <canvas id="bondsChart"></canvas>
+        </div>
+        <p class="chart-meta" id="update-label">Cargando…</p>
+    </div>
+
+    <!-- Summary Table -->
+    <div class="glass-card stagger-3 fade-in">
+        <h2 class="section-title">📋 Resumen de Indicadores</h2>
+        <div id="table-wrap" style="overflow-x:auto;">
+            <div class="loader-container"><div class="spinner"></div></div>
+        </div>
+        <div class="info-note">
+            ℹ️ <strong>Nota metodológica:</strong> ^TNX muestra el <em>yield</em> en % del Tesoro de EE.UU. a 10 años.
+            GD30 y AL30 son bonos soberanos argentinos cotizados en ARS en el mercado local (BYMA).
+            El <strong>Riesgo País (EMBI+)</strong> es el spread soberano sobre Treasuries en puntos básicos (pb),
+            publicado por <em>argentinadatos.com</em>.
+        </div>
+    </div>
+
+<script>
+    const API = '/.netlify/functions/bonos';
+    const RP_API = 'https://api.argentinadatos.com/v1/finanzas/indices/riesgo-pais';
+
+    const BONDS = {
+        '^TNX':    { label: 'Tesoro EE.UU. 10Y', color: '#3b82f6', unit: '%',   decimals: 2 },
+        'GD30.BA': { label: 'GD30 Argentina',    color: '#10b981', unit: 'ARS', decimals: 0 },
+        'AL30.BA': { label: 'AL30 Argentina',     color: '#f59e0b', unit: 'ARS', decimals: 0 },
+    };
+
+    const state = { tnx: null, gd30: null, al30: null, rp: null, errs: {} };
+
+    // ── Helpers ────────────────────────────────────────────────────
+    const N  = (n, d = 2) => n != null ? n.toLocaleString('es-AR', { minimumFractionDigits: d, maximumFractionDigits: d }) : 'N/D';
+    const pct = (n, d = 2) => n != null ? `${n > 0 ? '+' : ''}${N(n, d)}%` : 'N/D';
+    const cls  = n => n > 0 ? 'up' : n < 0 ? 'down' : 'flat';
+    const arr  = n => n > 0 ? '▲' : n < 0 ? '▼' : '—';
+
+    function priceStr(data, ticker) {
+        const { unit, decimals } = BONDS[ticker];
+        if (data.price == null) return 'N/D';
+        return unit === '%' ? `${N(data.price, 2)}%` : `$${N(data.price, decimals)}`;
+    }
+
+    function rangeStr(data, ticker) {
+        const { unit, decimals } = BONDS[ticker];
+        const lo = data.fiftyTwoWeekLow, hi = data.fiftyTwoWeekHigh;
+        if (lo == null && hi == null) return 'N/D';
+        const fmt = v => v != null ? (unit === '%' ? `${N(v, 2)}%` : `$${N(v, decimals)}`) : 'N/D';
+        return `${fmt(lo)} – ${fmt(hi)}`;
+    }
+
+    // ── Fetch ──────────────────────────────────────────────────────
+    async function fetchBono(ticker) {
+        const r = await fetch(`${API}?ticker=${encodeURIComponent(ticker)}&range=6mo`);
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
+        return j;
+    }
+
+    async function fetchRP() {
+        const r = await fetch(RP_API);
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const arr = await r.json();
+        if (!Array.isArray(arr) || arr.length === 0) throw new Error('Sin datos de riesgo país');
+        return arr[arr.length - 1];
+    }
+
+    // ── KPI Cards ──────────────────────────────────────────────────
+    function renderKPIs() {
+        const g = document.getElementById('kpi-grid');
+
+        function cardBono(cls, ticker, labelTop, nameLabel, data, errKey) {
+            const err = state.errs[errKey];
+            if (err) return `
+                <div class="kpi-card ${cls}">
+                    <div class="kpi-label">${labelTop}</div>
+                    <div class="kpi-name">${nameLabel}</div>
+                    <div class="err-inline">⚠️ Sin datos: ${err}</div>
+                </div>`;
+            if (!data) return `
+                <div class="kpi-card ${cls}">
+                    <div class="kpi-label">${labelTop}</div>
+                    <div class="kpi-name">${nameLabel}</div>
+                    <div class="kpi-value skel" style="height:40px;width:75%;margin-top:6px;"></div>
+                    <div class="skel" style="height:14px;width:55%;margin-top:10px;"></div>
+                </div>`;
+            const c = data.changePercent;
+            return `
+                <div class="kpi-card ${cls}">
+                    <div class="kpi-label">${labelTop}</div>
+                    <div class="kpi-name">${nameLabel}</div>
+                    <div class="kpi-value">${priceStr(data, ticker)}</div>
+                    <div class="kpi-change ${cls_(c)}">${arr(c)} ${pct(c)} hoy</div>
+                    <div class="kpi-sub">Rango 52s: ${rangeStr(data, ticker)}</div>
+                </div>`;
+        }
+
+        function cls_(n) { return n > 0 ? 'up' : n < 0 ? 'down' : 'flat'; }
+
+        let rpCard = '';
+        if (state.errs.rp) {
+            rpCard = `
+                <div class="kpi-card kpi-spread">
+                    <div class="kpi-label">SPREAD · EMBI</div>
+                    <div class="kpi-name">Riesgo País Argentina</div>
+                    <div class="err-inline">⚠️ Sin datos: ${state.errs.rp}</div>
+                </div>`;
+        } else if (!state.rp) {
+            rpCard = `
+                <div class="kpi-card kpi-spread">
+                    <div class="kpi-label">SPREAD · EMBI</div>
+                    <div class="kpi-name">Riesgo País Argentina</div>
+                    <div class="kpi-value skel" style="height:40px;width:75%;margin-top:6px;"></div>
+                    <div class="skel" style="height:14px;width:55%;margin-top:10px;"></div>
+                </div>`;
+        } else {
+            const rp = state.rp;
+            rpCard = `
+                <div class="kpi-card kpi-spread">
+                    <div class="kpi-label">SPREAD · EMBI</div>
+                    <div class="kpi-name">Riesgo País Argentina</div>
+                    <div class="kpi-value" style="color:#c084fc;">${N(rp.valor, 0)} <span style="font-size:1rem;color:var(--text-muted)">pb</span></div>
+                    <div class="kpi-change flat">≈ ${N(rp.valor / 100, 2)}% sobre UST10Y</div>
+                    <div class="kpi-sub">Actualizado: ${rp.fecha ? rp.fecha.split('T')[0] : '—'}</div>
+                </div>`;
+        }
+
+        g.innerHTML =
+            cardBono('kpi-tnx',  '^TNX',    'EE.UU. · ^TNX',    'Tesoro 10 años · Yield',     state.tnx,  '^TNX')  +
+            cardBono('kpi-gd30', 'GD30.BA', 'ARGENTINA · GD30',  'Bono Ley Extranjera · ARS',  state.gd30, 'GD30.BA') +
+            cardBono('kpi-al30', 'AL30.BA', 'ARGENTINA · AL30',  'Bono Ley Local · ARS',       state.al30, 'AL30.BA') +
+            rpCard;
+    }
+
+    // ── Chart ──────────────────────────────────────────────────────
+    let chartInst = null;
+
+    function renderChart() {
+        const { tnx, gd30, al30 } = state;
+        if (!tnx && !gd30 && !al30) return;
+
+        const errEl = document.getElementById('chart-error');
+
+        const allDates = [...new Set([
+            ...(tnx?.series  || []).map(d => d.date),
+            ...(gd30?.series || []).map(d => d.date),
+            ...(al30?.series || []).map(d => d.date),
+        ])].sort();
+
+        if (allDates.length === 0) {
+            errEl.style.display = 'block';
+            errEl.textContent = 'No hay suficientes datos históricos para mostrar el gráfico.';
+            return;
+        }
+
+        const toMap = arr => arr ? Object.fromEntries(arr.map(d => [d.date, d.close])) : {};
+        const tnxM  = toMap(tnx?.series);
+        const gd30M = toMap(gd30?.series);
+        const al30M = toMap(al30?.series);
+
+        const labels = allDates.map(d => {
+            const [y, m, day] = d.split('-');
+            return `${day}/${m}/${y.slice(2)}`;
+        });
+
+        const datasets = [];
+        const hasLeft  = tnx  && (tnx.series?.length  ?? 0) > 0;
+        const hasRight = (gd30 && (gd30.series?.length ?? 0) > 0) || (al30 && (al30.series?.length ?? 0) > 0);
+
+        if (hasLeft) {
+            datasets.push({
+                label: 'Tesoro EE.UU. 10Y (%)',
+                data: allDates.map(d => tnxM[d] ?? null),
+                borderColor: '#3b82f6',
+                backgroundColor: 'rgba(59,130,246,0.08)',
+                tension: 0.35,
+                fill: false,
+                pointRadius: 0,
+                pointHoverRadius: 5,
+                borderWidth: 2.5,
+                yAxisID: 'yL',
+                spanGaps: true,
+            });
+        }
+
+        if (gd30 && (gd30.series?.length ?? 0) > 0) {
+            datasets.push({
+                label: 'GD30 (ARS)',
+                data: allDates.map(d => gd30M[d] ?? null),
+                borderColor: '#10b981',
+                backgroundColor: 'rgba(16,185,129,0.06)',
+                tension: 0.35,
+                fill: false,
+                pointRadius: 0,
+                pointHoverRadius: 5,
+                borderWidth: 2,
+                yAxisID: 'yR',
+                spanGaps: true,
+            });
+        }
+
+        if (al30 && (al30.series?.length ?? 0) > 0) {
+            datasets.push({
+                label: 'AL30 (ARS)',
+                data: allDates.map(d => al30M[d] ?? null),
+                borderColor: '#f59e0b',
+                backgroundColor: 'rgba(245,158,11,0.06)',
+                tension: 0.35,
+                fill: false,
+                pointRadius: 0,
+                pointHoverRadius: 5,
+                borderWidth: 2,
+                yAxisID: 'yR',
+                spanGaps: true,
+            });
+        }
+
+        if (chartInst) chartInst.destroy();
+
+        const ctx = document.getElementById('bondsChart').getContext('2d');
+        chartInst = new Chart(ctx, {
+            type: 'line',
+            data: { labels, datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        align: 'end',
+                        labels: {
+                            usePointStyle: true,
+                            pointStyle: 'circle',
+                            padding: 20,
+                            color: '#94a3b8',
+                            font: { size: 11, weight: '600' },
+                        },
+                    },
+                    tooltip: {
+                        backgroundColor: '#1e293b',
+                        borderColor: 'rgba(255,255,255,0.08)',
+                        borderWidth: 1,
+                        padding: 12,
+                        cornerRadius: 10,
+                        callbacks: {
+                            label: ctx => {
+                                if (ctx.raw == null) return null;
+                                return ctx.dataset.yAxisID === 'yL'
+                                    ? `  ${ctx.dataset.label}: ${N(ctx.raw, 2)}%`
+                                    : `  ${ctx.dataset.label}: $${N(ctx.raw, 0)}`;
+                            },
+                        },
+                    },
+                },
+                scales: {
+                    x: {
+                        grid: { color: 'rgba(255,255,255,0.04)' },
+                        ticks: {
+                            color: '#64748b',
+                            font: { size: 10 },
+                            maxTicksLimit: 9,
+                            maxRotation: 0,
+                        },
+                    },
+                    yL: {
+                        display: hasLeft,
+                        position: 'left',
+                        grid: { color: 'rgba(255,255,255,0.04)' },
+                        ticks: {
+                            color: '#3b82f6',
+                            font: { size: 10 },
+                            callback: v => `${v.toFixed(2)}%`,
+                        },
+                        title: {
+                            display: true,
+                            text: 'Yield EE.UU. (%)',
+                            color: '#64748b',
+                            font: { size: 10 },
+                        },
+                    },
+                    yR: {
+                        display: hasRight,
+                        position: 'right',
+                        grid: { drawOnChartArea: false },
+                        ticks: {
+                            color: '#10b981',
+                            font: { size: 10 },
+                            callback: v => `$${v.toLocaleString('es-AR', { maximumFractionDigits: 0 })}`,
+                        },
+                        title: {
+                            display: true,
+                            text: 'Precio Bono AR (ARS)',
+                            color: '#64748b',
+                            font: { size: 10 },
+                        },
+                    },
+                },
+            },
+        });
+    }
+
+    // ── Table ──────────────────────────────────────────────────────
+    function renderTable() {
+        const wrap = document.getElementById('table-wrap');
+
+        const rows = [
+            { ticker: '^TNX',    dot: '#3b82f6', desc: 'U.S. Treasury Bond 10 años',       tipo: 'Yield (%)', data: state.tnx,  errKey: '^TNX'    },
+            { ticker: 'GD30.BA', dot: '#10b981', desc: 'Bono Soberano · Ley Extranjera',   tipo: 'Precio (ARS)', data: state.gd30, errKey: 'GD30.BA' },
+            { ticker: 'AL30.BA', dot: '#f59e0b', desc: 'Bono Soberano · Ley Local',        tipo: 'Precio (ARS)', data: state.al30, errKey: 'AL30.BA' },
+        ];
+
+        let html = `
+            <table class="bonds-table">
+                <thead>
+                    <tr>
+                        <th>Instrumento</th>
+                        <th>Tipo</th>
+                        <th>Precio / Yield</th>
+                        <th>Var. Diaria</th>
+                        <th>Rango 52 Sem.</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+
+        rows.forEach(({ ticker, dot, desc, tipo, data, errKey }) => {
+            const err = state.errs[errKey];
+            if (err) {
+                html += `
+                    <tr>
+                        <td>
+                            <div class="bond-ticker"><span class="dot" style="background:${dot};"></span>${ticker}</div>
+                            <div class="bond-desc">${desc}</div>
+                        </td>
+                        <td style="color:var(--text-muted);">${tipo}</td>
+                        <td colspan="3" style="color:#fca5a5;">⚠️ ${err}</td>
+                    </tr>`;
+                return;
+            }
+            if (!data) {
+                html += `<tr><td colspan="5"><div class="skel" style="height:18px;border-radius:4px;"></div></td></tr>`;
+                return;
+            }
+            const c = data.changePercent;
+            html += `
+                <tr>
+                    <td>
+                        <div class="bond-ticker"><span class="dot" style="background:${dot};"></span>${ticker}</div>
+                        <div class="bond-desc">${desc}</div>
+                    </td>
+                    <td style="color:var(--text-muted);font-size:0.8rem;">${tipo}</td>
+                    <td style="font-family:'Outfit',sans-serif;font-weight:700;">${priceStr(data, ticker)}</td>
+                    <td class="${cls(c)}" style="font-weight:600;">${arr(c)} ${pct(c)}</td>
+                    <td style="color:var(--text-secondary);font-size:0.85rem;">${rangeStr(data, ticker)}</td>
+                </tr>`;
+        });
+
+        // Spread / EMBI row
+        if (state.rp && !state.errs.rp) {
+            const rp = state.rp;
+            html += `
+                <tr class="spread-row">
+                    <td>
+                        <div class="bond-ticker"><span class="dot" style="background:#a855f7;"></span>EMBI+ ARG</div>
+                        <div class="bond-desc">Spread soberano sobre UST10Y</div>
+                    </td>
+                    <td style="color:var(--text-muted);font-size:0.8rem;">Spread (pb)</td>
+                    <td style="font-family:'Outfit',sans-serif;font-weight:700;color:#c084fc;">${N(rp.valor, 0)} pb</td>
+                    <td style="color:var(--text-muted);">—</td>
+                    <td style="color:var(--text-secondary);font-size:0.85rem;">${N(rp.valor / 100, 2)}% sobre Treasury</td>
+                </tr>`;
+        }
+
+        html += '</tbody></table>';
+        wrap.innerHTML = html;
+    }
+
+    // ── Main ───────────────────────────────────────────────────────
+    async function loadAll() {
+        const [r1, r2, r3, r4] = await Promise.allSettled([
+            fetchBono('^TNX'),
+            fetchBono('GD30.BA'),
+            fetchBono('AL30.BA'),
+            fetchRP(),
+        ]);
+
+        const process = (result, key, stateKey) => {
+            if (result.status === 'fulfilled') state[stateKey] = result.value;
+            else state.errs[key] = result.reason?.message || 'Error desconocido';
+        };
+
+        process(r1, '^TNX',    'tnx');
+        process(r2, 'GD30.BA', 'gd30');
+        process(r3, 'AL30.BA', 'al30');
+        process(r4, 'rp',      'rp');
+
+        renderKPIs();
+        renderChart();
+        renderTable();
+
+        const lbl = document.getElementById('update-label');
+        if (lbl) lbl.textContent = `Datos al ${new Date().toLocaleString('es-AR')} · Fuentes: Yahoo Finance · argentinadatos.com`;
+    }
+
+    loadAll();
+</script>
+
+</body>
+</html>
